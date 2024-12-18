@@ -1,5 +1,5 @@
 import { MongoClient, Db } from 'mongodb';
-import { MONGODB_URI, DB_NAME } from '../config/mongodb';
+import { MONGODB_URI, DB_NAME } from '../backend/src/config/mongodb';
 
 export type User = {
   _id: string;
@@ -14,6 +14,20 @@ export type User = {
   role: 'customer' | 'business_owner' | 'admin';
   isEmailVerified: boolean;
   lastLogin?: Date;
+};
+
+export type Review = {
+  _id: string;
+  businessId: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+  updatedAt: Date;
+  userName: string;
+  userAvatar?: string;
+  likes: number;
+  isVerified: boolean;
 };
 
 export type Business = {
@@ -45,6 +59,7 @@ export type Business = {
   updatedAt: Date;
   isVerified: boolean;
   averageRating: number;
+  reviews?: Review[];
 };
 
 class MongoDBService {

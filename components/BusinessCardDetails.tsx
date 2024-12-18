@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,18 +12,14 @@ import {
   Share,
   Dimensions,
   Alert,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'expo-router';
-
-type Review = {
-  id: string;
-  userName: string;
-  rating: number;
-  comment: string;
-  date: string;
-};
+import { apiService } from '../services/api';
+import { Review } from '../services/mongodb';
 
 type Service = {
   id: string;
@@ -68,6 +64,29 @@ export default function BusinessCardDetails({
 }: BusinessCardDetailsProps) {
   const { user } = useAuth();
   const router = useRouter();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [newReview, setNewReview] = useState({ rating: 0, comment: '' });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      loadReviews();
+    }
+  }, [visible, business.id]);
+
+  const loadReviews = async () => {
+    try {
+      setIsLoadingReviews(true);
+      const fetchedReviews = await apiService.getBusinessReviews(business.id);
+      setReviews(fetchedReviews);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      Alert.alert('Error', 'Failed to load reviews');
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
 
   const handleCall = () => {
     Linking.openURL(`tel:${business.phone}`);
@@ -123,7 +142,7 @@ export default function BusinessCardDetails({
     }
   };
 
-  const handleReviewPress = () => {
+  const handleReviewSubmit = async () => {
     if (!user) {
       Alert.alert(
         'Giriş Yapın',
@@ -145,19 +164,79 @@ export default function BusinessCardDetails({
       return;
     }
 
-    // Handle review submission
-    console.log('Add review');
+    if (newReview.rating === 0) {
+      Alert.alert('Uyarı', 'Lütfen bir puan seçin');
+      return;
+    }
+
+    if (!newReview.comment.trim()) {
+      Alert.alert('Uyarı', 'Lütfen bir yorum yazın');
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      await apiService.createReview({
+        businessId: business.id,
+        rating: newReview.rating,
+        comment: newReview.comment,
+      });
+
+      // Reset form and reload reviews
+      setNewReview({ rating: 0, comment: '' });
+      await loadReviews();
+      Alert.alert('Başarılı', 'Yorumunuz başarıyla eklendi');
+    } catch (error: any) {
+      // Check for rate limit error
+      if (error?.response?.status === 429) {
+        Alert.alert(
+          'Haftalık Yorum Limiti',
+          'Her işletme için haftada bir yorum yapabilirsiniz. Lütfen bir sonraki hafta tekrar deneyiniz.',
+          [{ text: 'Anladım', style: 'default' }]
+        );
+        return;
+      }
+
+      // Handle other errors
+      Alert.alert(
+        'Uyarı',
+        'Yorum gönderilemedi. Lütfen daha sonra tekrar deneyiniz.',
+        [{ text: 'Tamam', style: 'default' }]
+      );
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
-  const renderRatingStars = (rating: number) => {
+  const handleReviewLike = async (reviewId: string) => {
+    if (!user) {
+      Alert.alert('Giriş Yapın', 'Beğenmek için giriş yapmanız gerekiyor.');
+      return;
+    }
+
+    try {
+      await apiService.likeReview(reviewId);
+      await loadReviews();
+    } catch (error) {
+      console.error('Error liking review:', error);
+      Alert.alert('Hata', 'Beğeni eklenirken bir hata oluştu');
+    }
+  };
+
+  const renderRatingStars = (rating: number, size = 16, interactive = false) => {
     return [...Array(5)].map((_, index) => (
-      <FontAwesome
+      <TouchableOpacity
         key={`star-${index}`}
-        name={index < rating ? 'star' : 'star-o'}
-        size={16}
-        color={index < rating ? '#FFD700' : '#C4C4C4'}
-        style={styles.starIcon}
-      />
+        onPress={() => interactive && setNewReview({ ...newReview, rating: index + 1 })}
+        disabled={!interactive}
+      >
+        <FontAwesome
+          name={index < rating ? 'star' : 'star-o'}
+          size={size}
+          color={index < rating ? '#FFD700' : '#C4C4C4'}
+          style={styles.starIcon}
+        />
+      </TouchableOpacity>
     ));
   };
 
@@ -195,9 +274,9 @@ export default function BusinessCardDetails({
   const renderServices = () => {
     if (!business.services || business.services.length === 0) {
       return (
-        <View key="no-services" style={styles.emptyContainer}>
+        <View style={styles.emptyContainer}>
           <FontAwesome name="list" size={32} color="#999" />
-          <Text style={styles.emptyText}>No services available</Text>
+          <Text style={styles.emptyText}>Henüz hizmet eklenmemiş</Text>
         </View>
       );
     }
@@ -216,36 +295,60 @@ export default function BusinessCardDetails({
   };
 
   const renderReviews = () => {
-    if (!business.reviews || business.reviews.length === 0) {
+    if (isLoadingReviews) {
       return (
-        <View key="no-reviews" style={styles.emptyContainer}>
-          <FontAwesome name="comments" size={32} color="#999" />
-          <Text style={styles.emptyText}>Henüz yorum yok</Text>
-          <TouchableOpacity 
-            style={styles.addReviewButton}
-            onPress={handleReviewPress}
-          >
-            <Text style={styles.addReviewText}>İlk yorumu sen yap</Text>
-          </TouchableOpacity>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
         </View>
       );
     }
 
-    return business.reviews.map((review) => (
-      <View key={`review-${review.id}`} style={styles.reviewItem}>
+    if (!reviews || reviews.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <FontAwesome name="comments" size={32} color="#999" />
+          <Text style={styles.emptyText}>Henüz yorum yok</Text>
+        </View>
+      );
+    }
+
+    return reviews.map((review) => (
+      <View key={`review-${review._id}`} style={styles.reviewItem}>
         <View style={styles.reviewHeader}>
           <View style={styles.reviewerInfo}>
             <View style={styles.reviewerAvatar}>
-              <FontAwesome name="user-circle" size={24} color="#666" />
+              {review.userAvatar ? (
+                <Image
+                  source={{ uri: review.userAvatar }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <View style={[styles.avatarImage, styles.defaultAvatar]}>
+                  <Text style={styles.avatarInitial}>A</Text>
+                </View>
+              )}
             </View>
             <View>
-              <Text style={styles.reviewerName}>{review.userName}</Text>
-              <Text style={styles.reviewDate}>{review.date}</Text>
+              <Text style={styles.reviewerName}>Anonymous</Text>
+              <Text style={styles.reviewDate}>
+                {new Date(review.createdAt).toLocaleDateString()}
+              </Text>
             </View>
           </View>
-          <View style={styles.stars}>{renderRatingStars(review.rating)}</View>
+          <View style={styles.reviewRating}>
+            {renderRatingStars(review.rating, 12)}
+          </View>
         </View>
         <Text style={styles.reviewComment}>{review.comment}</Text>
+        <View style={styles.reviewActions}>
+          <TouchableOpacity
+            style={styles.likeButton}
+            onPress={() => handleReviewLike(review._id)}
+          >
+            <FontAwesome name="thumbs-up" size={14} color="#666" />
+            <Text style={styles.likeCount}>{review.likes}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     ));
   };
@@ -274,7 +377,7 @@ export default function BusinessCardDetails({
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -291,29 +394,42 @@ export default function BusinessCardDetails({
             <View style={styles.mainInfo}>
               <Text style={styles.businessName}>{business.name}</Text>
               <View style={styles.ratingContainer}>
-                <View style={styles.stars}>{renderRatingStars(business.rating)}</View>
-                <Text style={styles.reviewCount}>({business.reviewCount} reviews)</Text>
+                <View style={styles.stars}>
+                  {renderRatingStars(business.rating)}
+                </View>
+                <Text style={styles.reviewCount}>
+                  ({business.reviewCount} reviews)
+                </Text>
               </View>
               <Text style={styles.category}>{business.category}</Text>
               <Text style={styles.description}>{business.description}</Text>
             </View>
 
             <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleCall}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleCall}
+              >
                 <View style={styles.actionButtonIcon}>
                   <FontAwesome name="phone" size={20} color="#fff" />
                 </View>
                 <Text style={styles.actionButtonText}>Call</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton} onPress={handleDirection}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleDirection}
+              >
                 <View style={styles.actionButtonIcon}>
                   <FontAwesome name="map-marker" size={20} color="#fff" />
                 </View>
                 <Text style={styles.actionButtonText}>Direction</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleShare}
+              >
                 <View style={styles.actionButtonIcon}>
                   <FontAwesome name="share" size={20} color="#fff" />
                 </View>
@@ -334,6 +450,40 @@ export default function BusinessCardDetails({
                 <FontAwesome name="comments" size={18} color="#333" />
                 <Text style={styles.sectionTitle}>Reviews</Text>
               </View>
+
+              {user && (
+                <View style={styles.addReviewContainer}>
+                  <Text style={styles.addReviewTitle}>Add a Review</Text>
+                  <View style={styles.ratingInput}>
+                    {renderRatingStars(newReview.rating, 24, true)}
+                  </View>
+                  <TextInput
+                    style={styles.commentInput}
+                    placeholder="Write your review here..."
+                    multiline
+                    numberOfLines={4}
+                    value={newReview.comment}
+                    onChangeText={(text) =>
+                      setNewReview({ ...newReview, comment: text })
+                    }
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.submitButton,
+                      isSubmittingReview && styles.submitButtonDisabled,
+                    ]}
+                    onPress={handleReviewSubmit}
+                    disabled={isSubmittingReview}
+                  >
+                    {isSubmittingReview ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Submit Review</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {renderReviews()}
             </View>
           </View>
@@ -379,8 +529,8 @@ const styles = StyleSheet.create({
   },
   imageCounter: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: 16,
+    right: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -521,6 +671,11 @@ const styles = StyleSheet.create({
   reviewerAvatar: {
     marginRight: 8,
   },
+  avatarImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
   reviewerName: {
     fontSize: 14,
     fontWeight: '500',
@@ -530,10 +685,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  reviewRating: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
   reviewComment: {
     fontSize: 14,
     color: '#444',
     lineHeight: 20,
+  },
+  reviewActions: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+  },
+  likeCount: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: '#666',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -548,16 +721,56 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  addReviewButton: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
+  loadingContainer: {
+    padding: 24,
+    alignItems: 'center',
   },
-  addReviewText: {
+  addReviewContainer: {
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+  },
+  addReviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  ratingInput: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  commentInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  submitButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  defaultAvatar: {
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 }); 

@@ -1,10 +1,10 @@
-import { Business } from '../services/mongodb';
+import { Business, Review } from '../services/mongodb';
+import { authService } from './auth';
 
 const API_URL = 'http://localhost:3000/api';
 
 class ApiService {
   private static instance: ApiService;
-  private token: string | null = null;
 
   private constructor() {}
 
@@ -16,9 +16,10 @@ class ApiService {
   }
 
   private async fetchWithAuth(endpoint: string, options: RequestInit = {}) {
+    const token = await authService.getToken();
     const headers = {
       'Content-Type': 'application/json',
-      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     };
 
@@ -28,18 +29,27 @@ class ApiService {
         headers,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'API request failed');
+        const error = new Error(data.message || 'Something went wrong');
+        (error as any).response = {
+          status: response.status,
+          data: data
+        };
+        throw error;
       }
 
-      return await response.json();
+      return data;
     } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Something went wrong');
     }
   }
 
+  // Business endpoints
   public async getAllBusinesses(): Promise<Business[]> {
     return this.fetchWithAuth('/businesses');
   }
@@ -52,16 +62,42 @@ class ApiService {
     return this.fetchWithAuth(`/businesses/category/${encodeURIComponent(category)}`);
   }
 
-  public async searchBusinesses(query: string): Promise<Business[]> {
-    return this.fetchWithAuth(`/businesses/search?q=${encodeURIComponent(query)}`);
+  // Review endpoints
+  public async getBusinessReviews(businessId: string): Promise<Review[]> {
+    return this.fetchWithAuth(`/reviews/business/${businessId}`);
   }
 
-  public setToken(token: string) {
-    this.token = token;
+  public async createReview(review: {
+    businessId: string;
+    rating: number;
+    comment: string;
+  }): Promise<Review> {
+    return this.fetchWithAuth('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(review),
+    });
   }
 
-  public clearToken() {
-    this.token = null;
+  public async updateReview(reviewId: string, update: {
+    rating?: number;
+    comment?: string;
+  }): Promise<Review> {
+    return this.fetchWithAuth(`/reviews/${reviewId}`, {
+      method: 'PUT',
+      body: JSON.stringify(update),
+    });
+  }
+
+  public async deleteReview(reviewId: string): Promise<void> {
+    return this.fetchWithAuth(`/reviews/${reviewId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  public async likeReview(reviewId: string): Promise<Review> {
+    return this.fetchWithAuth(`/reviews/${reviewId}/like`, {
+      method: 'POST',
+    });
   }
 }
 

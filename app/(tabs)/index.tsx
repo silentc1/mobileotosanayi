@@ -124,7 +124,7 @@ const mapBusinessToCardBusiness = (business: MongoBusiness): CardBusiness => {
     description: business.description,
     images: business.images || [],
     businessHours: business.businessHours || [],
-    reviews: [],
+    reviews: business.reviews || [],
     services: (business.services || []).map((service, index) => ({
       ...service,
       id: service.id || `${business._id}-service-${index}`
