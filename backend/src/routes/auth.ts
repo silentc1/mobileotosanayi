@@ -154,4 +154,60 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// Update user route
+router.put('/update', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const db = req.app.locals.db;
+
+    // Validate update data
+    const updateSchema = z.object({
+      fullName: z.string().min(2),
+      email: z.string().email(),
+      phone: z.string().optional(),
+    });
+
+    const validation = updateSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.errors });
+    }
+
+    const updateData = validation.data;
+
+    try {
+      const updatedUser = await UserRepository.update(db, decoded.userId, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json({
+        user: {
+          id: updatedUser._id,
+          email: updatedUser.email,
+          fullName: updatedUser.fullName,
+          role: updatedUser.role,
+          phone: updatedUser.phone,
+          favorites: updatedUser.favorites,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Email already in use') {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router; 

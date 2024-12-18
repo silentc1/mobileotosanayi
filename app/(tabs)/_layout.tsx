@@ -31,7 +31,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          href: '/',
           title: 'Ana Sayfa',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="home" size={size} color={color} />
@@ -41,7 +40,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="acil"
         options={{
-          href: '/acil',
           title: 'Acil',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="exclamation-circle" size={size} color={color} />
@@ -51,7 +49,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="campaigns"
         options={{
-          href: '/campaigns',
           title: 'Kampanyalar',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="gift" size={size} color={color} />
@@ -61,7 +58,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="bilgilendirme"
         options={{
-          href: '/bilgilendirme',
           title: 'Bilgi',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="info-circle" size={size} color={color} />
@@ -69,10 +65,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="profilim"
         options={{
-          href: '/profile',
-          title: 'Profil',
+          title: 'Profilim',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="user" size={size} color={color} />
           ),

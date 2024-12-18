@@ -3,7 +3,11 @@ import { User } from './mongodb';
 import Constants from 'expo-constants';
 
 // Get the server URL from environment variables or use a fallback
-const API_URL = 'http://192.168.1.5:3000/api'; // Use the same IP as api.ts
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 
+                process.env.EXPO_PUBLIC_API_URL || 
+                'http://localhost:3000/api';
+
+console.log('Auth service using API URL:', API_URL); // Debug log
 
 // Export storage keys for use in other files
 export const AUTH_TOKEN_KEY = 'auth_token';
@@ -152,7 +156,7 @@ class AuthService {
       if (!token) return null;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const response = await fetch(`${API_URL}/auth/me`, {
         headers: {
@@ -181,6 +185,44 @@ class AuthService {
         console.error('Request timed out');
       }
       return null;
+    }
+  }
+
+  public async updateUser(data: { fullName: string; email: string; phone?: string }): Promise<User | null> {
+    try {
+      const token = await this.getToken();
+      if (!token) return null;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`${API_URL}/auth/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update user');
+      }
+
+      const { user } = await response.json();
+      this.user = user;
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
+      return user;
+    } catch (error) {
+      console.error('Update user error:', error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timed out. Please check your internet connection and try again.');
+      }
+      throw error;
     }
   }
 

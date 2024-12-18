@@ -3,9 +3,11 @@ import { authService } from './auth';
 import Constants from 'expo-constants';
 
 // Get the server URL from environment variables or use a fallback
-const API_URL = 'http://192.168.1.5:3000/api'; // Android Emulator
-// const API_URL = 'http://localhost:3000/api'; // iOS Simulator
-// const API_URL = 'http://YOUR_LOCAL_IP:3000/api'; // Physical Device
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 
+                process.env.EXPO_PUBLIC_API_URL || 
+                'http://localhost:3000/api';
+
+console.log('Using API URL:', API_URL); // Debug log
 
 class ApiService {
   private static instance: ApiService;
@@ -78,6 +80,10 @@ class ApiService {
   // Review endpoints
   public async getBusinessReviews(businessId: string): Promise<Review[]> {
     return this.fetchWithAuth(`/reviews/business/${businessId}`);
+  }
+
+  public async getUserReviews(): Promise<Review[]> {
+    return this.fetchWithAuth(`/reviews/user`);
   }
 
   public async createReview(review: {

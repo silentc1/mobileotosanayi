@@ -14,6 +14,11 @@ interface AuthContextType {
     phone?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (data: {
+    fullName: string;
+    email: string;
+    phone?: string;
+  }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,16 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (token) {
         console.log('Token found, validating...');
-        // Validate the token by getting the current user
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           console.log('User validated successfully:', currentUser.email);
           setUser(currentUser);
-          // Ensure user data is stored
           await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(currentUser));
         } else {
           console.log('Token invalid, logging out...');
-          // If getCurrentUser returns null, the token is invalid
           await authService.logout();
         }
       } else {
@@ -52,10 +54,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error checking user:', error);
-      // On error, clear the invalid token
       await authService.logout();
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateUser = async (data: { fullName: string; email: string; phone?: string }) => {
+    try {
+      console.log('Updating user data...');
+      const updatedUser = await authService.updateUser(data);
+      if (updatedUser) {
+        console.log('User data updated successfully');
+        setUser(updatedUser);
+        await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
     }
   };
 
@@ -68,9 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         console.log('User data fetched successfully');
         setUser(currentUser);
-        // Store user data in AsyncStorage for persistence
         await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(currentUser));
-        // Call the success callback if provided
         if (onLoginSuccess) {
           onLoginSuccess();
         }
@@ -96,7 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         console.log('User data fetched successfully');
         setUser(currentUser);
-        // Store user data in AsyncStorage for persistence
         await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(currentUser));
       }
       return response;
@@ -110,7 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Logging out...');
       await authService.logout();
-      // Clear user data from AsyncStorage
       await AsyncStorage.removeItem(USER_DATA_KEY);
       setUser(null);
       console.log('Logout successful');
@@ -128,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        updateUser,
       }}
     >
       {children}

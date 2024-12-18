@@ -137,4 +137,32 @@ export class UserRepository {
       throw new Error('Failed to remove from favorites');
     }
   }
+
+  static async update(db: Db, userId: string, updateData: { fullName: string; email: string; phone?: string }): Promise<WithId<User> | null> {
+    try {
+      // Check if email is being changed and if it's already taken
+      if (updateData.email) {
+        const existingUser = await this.findByEmail(db, updateData.email);
+        if (existingUser && existingUser._id.toString() !== userId) {
+          throw new Error('Email already in use');
+        }
+      }
+
+      const result = await db.collection<User>(this.COLLECTION).findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        {
+          $set: {
+            ...updateData,
+            updatedAt: new Date()
+          }
+        },
+        { returnDocument: 'after' }
+      );
+
+      return result;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  }
 } 
