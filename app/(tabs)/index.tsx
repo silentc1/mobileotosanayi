@@ -131,6 +131,13 @@ const mapBusinessToCardBusiness = (business: MongoBusiness): CardBusiness => {
     })),
     latitude: business.latitude,
     longitude: business.longitude,
+    city: business.city,
+    ilce: business.ilce,
+    brands: business.brands || [],
+    placeId: business.placeId,
+    googleReviews: business.googleReviews,
+    lastGoogleSync: business.lastGoogleSync,
+    appreviews: business.appreviews || [],
   };
 };
 

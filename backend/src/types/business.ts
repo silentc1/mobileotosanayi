@@ -1,33 +1,36 @@
-import { Review } from './review';
+import { ObjectId } from 'mongodb';
+
+export interface Review {
+  rating: number;
+  text: string;
+  time: number;
+  authorName: string;
+}
 
 export interface Business {
-  _id: string;
+  _id: string | ObjectId;
   ownerId: string;
   name: string;
-  category: string;
+  category: string[];
   rating: number;
   reviewCount: number;
   address: string;
   phone: string;
-  website?: string;
   description: string;
   images: string[];
-  businessHours: Array<{
-    day: string;
-    hours: string;
-    isOpen: boolean;
-  }>;
-  services: Array<{
-    id: string;
-    name: string;
-    price: string;
-    description?: string;
-  }>;
   latitude: number;
   longitude: number;
-  createdAt: Date;
-  updatedAt: Date;
-  isVerified: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
   averageRating: number;
-  reviews?: Review[];
+  placeId: string;
+  googleReviews: Review[];
+  lastGoogleSync: string | Date;
+  website: string;
+  brands: string[];
+  city: string;
+  ilce: string;
+  appreviews: Review[];
+  businessHours: string[];
+  services: string[];
 } 

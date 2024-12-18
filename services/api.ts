@@ -70,11 +70,16 @@ class ApiService {
   public async createReview(review: {
     businessId: string;
     rating: number;
-    comment: string;
+    text: string;
+    authorName: string;
   }): Promise<Review> {
-    return this.fetchWithAuth('/reviews', {
+    return this.fetchWithAuth(`/reviews/business/${review.businessId}`, {
       method: 'POST',
-      body: JSON.stringify(review),
+      body: JSON.stringify({
+        rating: review.rating,
+        text: review.text,
+        authorName: review.authorName
+      }),
     });
   }
 

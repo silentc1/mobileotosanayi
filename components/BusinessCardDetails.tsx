@@ -21,17 +21,12 @@ import { useRouter } from 'expo-router';
 import { apiService } from '../services/api';
 import { Review } from '../services/mongodb';
 
-type Service = {
-  id: string;
-  name: string;
-  price: string;
-  description?: string;
-};
-
 export type Business = {
-  id: string;
+  id?: string;
+  _id: string;
+  ownerId: string;
   name: string;
-  category: string;
+  category: string[];
   rating: number;
   reviewCount: number;
   address: string;
@@ -39,10 +34,31 @@ export type Business = {
   website?: string;
   description: string;
   images: string[];
-  reviews: Review[];
-  services: Service[];
   latitude: number;
   longitude: number;
+  createdAt: string;
+  updatedAt: string;
+  averageRating: number;
+  placeId?: string;
+  googleReviews?: Array<{
+    rating: number;
+    text: string;
+    time: number;
+    authorName: string;
+  }>;
+  lastGoogleSync?: string;
+  city: string;
+  ilce: string;
+  brands: string[];
+  appreviews?: Array<{
+    rating: number;
+    text: string;
+    time: string;
+    authorName: string;
+  }>;
+  businessHours?: Array<any>;
+  reviews?: Array<any>;
+  services?: Array<any>;
 };
 
 type BusinessCardDetailsProps = {
@@ -66,19 +82,31 @@ export default function BusinessCardDetails({
   const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
-  const [newReview, setNewReview] = useState({ rating: 0, comment: '' });
+  const [newReview, setNewReview] = useState({ rating: 0, text: '', authorName: user?.name || 'Anonymous' });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      console.log('Business details on mount:', {
+        id: business.id || business._id,
+        name: business.name,
+        hasGoogleReviews: !!business.googleReviews,
+        googleReviewsCount: business.googleReviews?.length,
+        hasAppReviews: !!business.appreviews,
+        appReviewsCount: business.appreviews?.length,
+        reviewCount: business.reviewCount,
+        rawGoogleReviews: business.googleReviews,
+        rawAppReviews: business.appreviews,
+        fullBusiness: business
+      });
       loadReviews();
     }
-  }, [visible, business.id]);
+  }, [visible, business.id || business._id]);
 
   const loadReviews = async () => {
     try {
       setIsLoadingReviews(true);
-      const fetchedReviews = await apiService.getBusinessReviews(business.id);
+      const fetchedReviews = await apiService.getBusinessReviews(business.id || business._id);
       setReviews(fetchedReviews);
     } catch (error) {
       console.error('Error loading reviews:', error);
@@ -169,7 +197,7 @@ export default function BusinessCardDetails({
       return;
     }
 
-    if (!newReview.comment.trim()) {
+    if (!newReview.text.trim()) {
       Alert.alert('Uyarı', 'Lütfen bir yorum yazın');
       return;
     }
@@ -177,13 +205,14 @@ export default function BusinessCardDetails({
     try {
       setIsSubmittingReview(true);
       await apiService.createReview({
-        businessId: business.id,
+        businessId: business.id || business._id,
         rating: newReview.rating,
-        comment: newReview.comment,
+        text: newReview.text,
+        authorName: user?.name || 'Anonymous'
       });
 
       // Reset form and reload reviews
-      setNewReview({ rating: 0, comment: '' });
+      setNewReview({ rating: 0, text: '', authorName: user?.name || 'Anonymous' });
       await loadReviews();
       Alert.alert('Başarılı', 'Yorumunuz başarıyla eklendi');
     } catch (error: any) {
@@ -198,6 +227,7 @@ export default function BusinessCardDetails({
       }
 
       // Handle other errors
+      console.error('Error submitting review:', error);
       Alert.alert(
         'Uyarı',
         'Yorum gönderilemedi. Lütfen daha sonra tekrar deneyiniz.',
@@ -271,30 +301,18 @@ export default function BusinessCardDetails({
     ));
   };
 
-  const renderServices = () => {
-    if (!business.services || business.services.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <FontAwesome name="list" size={32} color="#999" />
-          <Text style={styles.emptyText}>Henüz hizmet eklenmemiş</Text>
-        </View>
-      );
-    }
-
-    return business.services.map((service) => (
-      <View key={`service-${service.id}`} style={styles.serviceItem}>
-        <View style={styles.serviceHeader}>
-          <Text style={styles.serviceName}>{service.name}</Text>
-          <Text style={styles.servicePrice}>{service.price}</Text>
-        </View>
-        {service.description && (
-          <Text style={styles.serviceDescription}>{service.description}</Text>
-        )}
-      </View>
-    ));
-  };
-
   const renderReviews = () => {
+    console.log('Rendering reviews section with data:', {
+      hasGoogleReviews: Boolean(business.googleReviews),
+      googleReviewsCount: business.googleReviews?.length,
+      hasAppReviews: Boolean(business.appreviews),
+      appReviewsCount: business.appreviews?.length,
+      rawGoogleReviews: business.googleReviews,
+      rawAppReviews: business.appreviews,
+      businessReviewCount: business.reviewCount,
+      fullBusiness: business
+    });
+
     if (isLoadingReviews) {
       return (
         <View style={styles.loadingContainer}>
@@ -303,54 +321,181 @@ export default function BusinessCardDetails({
       );
     }
 
-    if (!reviews || reviews.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <FontAwesome name="comments" size={32} color="#999" />
-          <Text style={styles.emptyText}>Henüz yorum yok</Text>
-        </View>
-      );
-    }
-
-    return reviews.map((review) => (
-      <View key={`review-${review._id}`} style={styles.reviewItem}>
-        <View style={styles.reviewHeader}>
-          <View style={styles.reviewerInfo}>
-            <View style={styles.reviewerAvatar}>
-              {review.userAvatar ? (
-                <Image
-                  source={{ uri: review.userAvatar }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <View style={[styles.avatarImage, styles.defaultAvatar]}>
-                  <Text style={styles.avatarInitial}>A</Text>
+    return (
+      <View>
+        {/* Google Reviews Section */}
+        <View style={styles.reviewsSection}>
+          <View style={styles.reviewSourceHeader}>
+            <FontAwesome name="google" size={16} color="#4285F4" />
+            <Text style={styles.reviewSourceText}>Google Yorumları</Text>
+            <Text style={styles.reviewCount}>
+              ({business.reviewCount || 0} yorum)
+            </Text>
+          </View>
+          
+          {business.googleReviews && business.googleReviews.length > 0 ? (
+            <>
+              {business.googleReviews.map((review, index) => (
+                <View key={`google-review-${index}`} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewerInfo}>
+                      <View style={[styles.avatarImage, styles.defaultAvatar]}>
+                        <Text style={styles.avatarInitial}>
+                          {review.authorName?.charAt(0) || 'A'}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={styles.reviewerName}>{review.authorName}</Text>
+                        <Text style={styles.reviewDate}>
+                          {formatDateToTurkish(review.time)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.reviewRating}>
+                      {renderRatingStars(review.rating, 12)}
+                      <Text style={styles.reviewRatingNumber}>
+                        {review.rating.toFixed(1)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewComment}>{review.text}</Text>
                 </View>
+              ))}
+              {business.reviewCount > business.googleReviews.length && (
+                <Text style={styles.moreReviewsText}>
+                  +{business.reviewCount - business.googleReviews.length} yorum daha Google'da mevcut
+                </Text>
+              )}
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <FontAwesome name="google" size={24} color="#4285F4" />
+              <Text style={styles.emptyText}>Google yorumu bulunmuyor</Text>
+              {business.reviewCount > 0 && (
+                <Text style={styles.emptySubText}>
+                  {business.reviewCount} yorum Google'da mevcut
+                </Text>
               )}
             </View>
-            <View>
-              <Text style={styles.reviewerName}>Anonymous</Text>
-              <Text style={styles.reviewDate}>
-                {new Date(review.createdAt).toLocaleDateString()}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.reviewRating}>
-            {renderRatingStars(review.rating, 12)}
-          </View>
+          )}
+          
+          {business.lastGoogleSync && (
+            <Text style={styles.syncInfo}>
+              Son güncelleme: {new Date(business.lastGoogleSync).toLocaleDateString('tr-TR')}
+            </Text>
+          )}
         </View>
-        <Text style={styles.reviewComment}>{review.comment}</Text>
-        <View style={styles.reviewActions}>
-          <TouchableOpacity
-            style={styles.likeButton}
-            onPress={() => handleReviewLike(review._id)}
-          >
-            <FontAwesome name="thumbs-up" size={14} color="#666" />
-            <Text style={styles.likeCount}>{review.likes}</Text>
-          </TouchableOpacity>
+
+        {/* App Reviews Section */}
+        <View style={styles.reviewsSection}>
+          <View style={styles.reviewSourceHeader}>
+            <FontAwesome name="comments" size={16} color="#333" />
+            <Text style={styles.reviewSourceText}>Uygulama Yorumları</Text>
+            <Text style={styles.reviewCount}>
+              ({business.appreviews?.length || 0} yorum)
+            </Text>
+          </View>
+          
+          {business.appreviews && business.appreviews.length > 0 ? (
+            <>
+              {console.log('Rendering app reviews:', business.appreviews)}
+              {business.appreviews.map((review, index) => {
+                console.log('Rendering app review:', { index, review });
+                return (
+                  <View key={`app-review-${index}`} style={styles.reviewItem}>
+                    <View style={styles.reviewHeader}>
+                      <View style={styles.reviewerInfo}>
+                        <View style={[styles.avatarImage, styles.defaultAvatar]}>
+                          <Text style={styles.avatarInitial}>
+                            {review.authorName?.charAt(0) || 'A'}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text style={styles.reviewerName}>{review.authorName || 'Anonim'}</Text>
+                          <Text style={styles.reviewDate}>
+                            {new Date(parseInt(review.time)).toLocaleDateString('tr-TR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.reviewRating}>
+                        {renderRatingStars(review.rating, 12)}
+                        <Text style={styles.reviewRatingNumber}>
+                          {review.rating.toFixed(1)}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.reviewComment}>{review.text}</Text>
+                  </View>
+                );
+              })}
+            </>
+          ) : (
+            <>
+              {console.log('No app reviews to display')}
+              <View style={styles.emptyContainer}>
+                <FontAwesome name="comments" size={32} color="#999" />
+                <Text style={styles.emptyText}>Henüz yorum yapılmamış</Text>
+                <Text style={styles.emptySubText}>İlk yorumu siz yapın!</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
-    ));
+    );
+  };
+
+  const renderMainInfo = () => (
+    <View style={styles.mainInfo}>
+      <Text style={styles.businessName}>{business.name}</Text>
+      
+      <View style={styles.ratingContainer}>
+        <View style={styles.stars}>
+          {renderRatingStars(business.rating)}
+        </View>
+        <Text style={styles.ratingNumber}>
+          {business.rating ? business.rating.toFixed(1) : '0.0'}
+        </Text>
+        <Text style={styles.reviewCount}>
+          ({business.reviewCount} Google reviews)
+        </Text>
+      </View>
+
+      <View style={styles.infoRow}>
+        <FontAwesome name="tag" size={16} color="#666" />
+        <Text style={styles.infoText}>
+          {Array.isArray(business.category) 
+            ? business.category.join(', ')
+            : business.category}
+        </Text>
+      </View>
+
+      <View style={styles.infoRow}>
+        <FontAwesome name="map-marker" size={16} color="#666" />
+        <Text style={styles.infoText}>{business.address}</Text>
+      </View>
+
+      {Array.isArray(business.brands) && business.brands.length > 0 && (
+        <View style={styles.infoRow}>
+          <FontAwesome name="building" size={16} color="#666" />
+          <Text style={styles.infoText}>{business.brands.join(' • ')}</Text>
+        </View>
+      )}
+
+      <Text style={styles.description}>{business.description}</Text>
+    </View>
+  );
+
+  const formatDateToTurkish = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   return (
@@ -391,19 +536,7 @@ export default function BusinessCardDetails({
           </ScrollView>
 
           <View style={styles.content}>
-            <View style={styles.mainInfo}>
-              <Text style={styles.businessName}>{business.name}</Text>
-              <View style={styles.ratingContainer}>
-                <View style={styles.stars}>
-                  {renderRatingStars(business.rating)}
-                </View>
-                <Text style={styles.reviewCount}>
-                  ({business.reviewCount} reviews)
-                </Text>
-              </View>
-              <Text style={styles.category}>{business.category}</Text>
-              <Text style={styles.description}>{business.description}</Text>
-            </View>
+            {renderMainInfo()}
 
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
@@ -439,32 +572,24 @@ export default function BusinessCardDetails({
 
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <FontAwesome name="list" size={18} color="#333" />
-                <Text style={styles.sectionTitle}>Services</Text>
-              </View>
-              {renderServices()}
-            </View>
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <FontAwesome name="comments" size={18} color="#333" />
-                <Text style={styles.sectionTitle}>Reviews</Text>
+                <FontAwesome name="star" size={18} color="#333" />
+                <Text style={styles.sectionTitle}>Yorumlar</Text>
               </View>
 
               {user && (
                 <View style={styles.addReviewContainer}>
-                  <Text style={styles.addReviewTitle}>Add a Review</Text>
+                  <Text style={styles.addReviewTitle}>Yorum Ekle</Text>
                   <View style={styles.ratingInput}>
                     {renderRatingStars(newReview.rating, 24, true)}
                   </View>
                   <TextInput
                     style={styles.commentInput}
-                    placeholder="Write your review here..."
+                    placeholder="Yorumunuzu buraya yazın..."
                     multiline
                     numberOfLines={4}
-                    value={newReview.comment}
+                    value={newReview.text}
                     onChangeText={(text) =>
-                      setNewReview({ ...newReview, comment: text })
+                      setNewReview({ ...newReview, text: text })
                     }
                   />
                   <TouchableOpacity
@@ -478,7 +603,7 @@ export default function BusinessCardDetails({
                     {isSubmittingReview ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.submitButtonText}>Submit Review</Text>
+                      <Text style={styles.submitButtonText}>Yorum Gönder</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -619,12 +744,14 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginLeft: 8,
   },
   serviceItem: {
@@ -655,7 +782,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   reviewItem: {
-    marginBottom: 20,
+    marginBottom: 16,
     padding: 12,
     backgroundColor: '#F8F8F8',
     borderRadius: 8,
@@ -710,9 +837,10 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
     backgroundColor: '#F8F8F8',
     borderRadius: 8,
+    marginTop: 8,
   },
   emptyText: {
     fontSize: 14,
@@ -772,5 +900,70 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  reviewsSection: {
+    marginBottom: 20,
+  },
+  reviewSourceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 8,
+  },
+  reviewSourceText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  syncInfo: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'right',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  moreReviewsText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  emptySubText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    flex: 1,
+  },
+  ratingNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginLeft: 4,
+    marginRight: 8,
+  },
+  reviewRatingNumber: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginLeft: 4,
   },
 }); 
