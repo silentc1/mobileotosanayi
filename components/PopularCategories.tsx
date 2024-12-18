@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
+  LayoutChangeEvent,
+  LayoutRectangle,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -52,9 +54,32 @@ export default function PopularCategories({
   onSeeAllPress,
   selectedCategory 
 }: PopularCategoriesProps) {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const categoryLayouts = useRef<{ [key: string]: LayoutRectangle }>({});
+
+  const handleCategoryLayout = (categoryId: string) => (event: LayoutChangeEvent) => {
+    categoryLayouts.current[categoryId] = event.nativeEvent.layout;
+  };
+
+  useEffect(() => {
+    if (selectedCategory && scrollViewRef.current) {
+      const selectedCategoryData = CATEGORIES.find(cat => cat.value === selectedCategory);
+      if (selectedCategoryData) {
+        const layout = categoryLayouts.current[selectedCategoryData.id];
+        if (layout) {
+          scrollViewRef.current.scrollTo({
+            x: Math.max(0, layout.x - 20),
+            animated: true
+          });
+        }
+      }
+    }
+  }, [selectedCategory]);
+
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -68,6 +93,7 @@ export default function PopularCategories({
             ]}
             activeOpacity={0.7}
             onPress={() => onCategoryPress?.(category)}
+            onLayout={handleCategoryLayout(category.id)}
           >
             <View 
               style={[

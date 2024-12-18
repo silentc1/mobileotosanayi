@@ -1,7 +1,11 @@
 import { Business, Review } from '../services/mongodb';
 import { authService } from './auth';
+import Constants from 'expo-constants';
 
-const API_URL = 'http://localhost:3000/api';
+// Get the server URL from environment variables or use a fallback
+const API_URL = 'http://192.168.1.5:3000/api'; // Android Emulator
+// const API_URL = 'http://localhost:3000/api'; // iOS Simulator
+// const API_URL = 'http://YOUR_LOCAL_IP:3000/api'; // Physical Device
 
 class ApiService {
   private static instance: ApiService;
@@ -24,10 +28,16 @@ class ApiService {
     };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -43,6 +53,9 @@ class ApiService {
       return data;
     } catch (error) {
       if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out. Please check your internet connection and try again.');
+        }
         throw error;
       }
       throw new Error('Something went wrong');

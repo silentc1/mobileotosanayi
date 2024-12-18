@@ -12,15 +12,27 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { authService } from '../../services/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
+import { apiService } from '../../services/api';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
+
+  const refreshAppData = async () => {
+    try {
+      // Refresh businesses data
+      await apiService.getAllBusinesses();
+      // Add other data refresh calls here as needed
+    } catch (error) {
+      console.error('Error refreshing app data:', error);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -30,7 +42,7 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      await authService.login({ email, password });
+      await login(email, password, refreshAppData);
       router.replace('/(tabs)');
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Login failed');

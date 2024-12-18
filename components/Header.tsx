@@ -15,11 +15,11 @@ import PromoBanner from './PromoBanner';
 
 export default function Header() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const handleAuthPress = () => {
     if (user) {
-      logout();
+      router.push('/(tabs)/profile');
     } else {
       router.push('/login');
     }

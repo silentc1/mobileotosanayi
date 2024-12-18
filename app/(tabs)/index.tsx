@@ -198,7 +198,7 @@ export default function HomeScreen() {
         setSelectedDistrict(value);
         break;
       case 'category':
-        setSelectedCategory(value);
+        setSelectedCategory(prevCategory => prevCategory === value ? '' : value);
         break;
       case 'brand':
         setSelectedBrand(value);
