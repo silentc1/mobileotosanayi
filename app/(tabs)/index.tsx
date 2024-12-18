@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontAwesome } from '@expo/vector-icons';
 import BusinessCard from '../../components/BusinessCard';
 import FilterBar from '../../components/FilterBar';
 import Header from '../../components/Header';
@@ -9,6 +10,7 @@ import PopularCategories from '../../components/PopularCategories';
 import { Business as MongoBusiness } from '../../services/mongodb';
 import { apiService } from '../../services/api';
 import { Business as CardBusiness } from '../../components/BusinessCardDetails';
+import { CITIES, DISTRICTS, getDistrictsForCity } from '../../data/locations';
 
 type FilterOption = {
   label: string;
@@ -17,28 +19,96 @@ type FilterOption = {
 
 type FilterType = 'city' | 'district' | 'category' | 'brand';
 
-const CITIES: FilterOption[] = [
-  { label: 'Tüm Şehirler', value: '' },
-  { label: 'İstanbul', value: 'İstanbul' },
-];
-
-const DISTRICTS: FilterOption[] = [
-  { label: 'Tüm İlçeler', value: '' },
-  { label: 'Kadıköy', value: 'Kadıköy' },
-  { label: 'Beşiktaş', value: 'Beşiktaş' },
-  { label: 'Ümraniye', value: 'Ümraniye' },
-];
-
 const CATEGORIES: FilterOption[] = [
   { label: 'Tüm Kategoriler', value: '' },
   { label: 'Servisler', value: 'Servisler' },
   { label: 'Kaportacılar', value: 'Kaportacılar' },
   { label: 'Lastikçiler', value: 'Lastikçiler' },
+  { label: 'Parçacılar', value: 'Parçacılar' },
+  { label: 'Motorsikletciler', value: 'Motorsikletciler' },
+  { label: 'Egzozcular', value: 'Egzozcular' },
+  { label: 'Boyacılar', value: 'Boyacılar' },
+  { label: 'Ekspertizler', value: 'Ekspertizler' },
+  { label: 'Frenciler', value: 'Frenciler' },
+  { label: 'Aksesuarcılar', value: 'Aksesuarcılar' },
+  { label: 'Elektrikçiler', value: 'Elektrikçiler' },
+  { label: 'Turbocular', value: 'Turbocular' },
+  { label: 'Yazılımcılar', value: 'Yazılımcılar' },
+  { label: 'Cam Film ve Kaplamacılar', value: 'Cam Film ve Kaplamacılar' },
+  { label: 'Kilitciler', value: 'Kilitciler' },
+  { label: 'Yıkamacılar', value: 'Yıkamacılar' },
+  { label: 'Tunningciler', value: 'Tunningciler' },
+  { label: 'Rot Balanscılar', value: 'Rot Balanscılar' },
+  { label: 'Oto Kuaförler', value: 'Oto Kuaförler' },
+  { label: 'Oto Döşemeciler', value: 'Oto Döşemeciler' },
+  { label: 'Camcılar', value: 'Camcılar' },
+  { label: 'Jantcılar', value: 'Jantcılar' }
 ];
 
 const BRANDS: FilterOption[] = [
   { label: 'Tüm Markalar', value: '' },
   { label: 'Çok Markalı', value: 'Çok Markalı' },
+  { label: 'Alfa Romeo', value: 'Alfa Romeo' },
+  { label: 'Audi', value: 'Audi' },
+  { label: 'BMW', value: 'BMW' },
+  { label: 'Chevrolet', value: 'Chevrolet' },
+  { label: 'Citroën', value: 'Citroën' },
+  { label: 'Dacia', value: 'Dacia' },
+  { label: 'Fiat', value: 'Fiat' },
+  { label: 'Ford', value: 'Ford' },
+  { label: 'Honda', value: 'Honda' },
+  { label: 'Hyundai', value: 'Hyundai' },
+  { label: 'Jaguar', value: 'Jaguar' },
+  { label: 'Jeep', value: 'Jeep' },
+  { label: 'Kia', value: 'Kia' },
+  { label: 'Land Rover', value: 'Land Rover' },
+  { label: 'Lexus', value: 'Lexus' },
+  { label: 'Mazda', value: 'Mazda' },
+  { label: 'Mercedes-Benz', value: 'Mercedes-Benz' },
+  { label: 'Mini', value: 'Mini' },
+  { label: 'Mitsubishi', value: 'Mitsubishi' },
+  { label: 'Nissan', value: 'Nissan' },
+  { label: 'Opel', value: 'Opel' },
+  { label: 'Peugeot', value: 'Peugeot' },
+  { label: 'Porsche', value: 'Porsche' },
+  { label: 'Renault', value: 'Renault' },
+  { label: 'Seat', value: 'Seat' },
+  { label: 'Skoda', value: 'Skoda' },
+  { label: 'Smart', value: 'Smart' },
+  { label: 'Subaru', value: 'Subaru' },
+  { label: 'Suzuki', value: 'Suzuki' },
+  { label: 'Tesla', value: 'Tesla' },
+  { label: 'Toyota', value: 'Toyota' },
+  { label: 'Volkswagen', value: 'Volkswagen' },
+  { label: 'Volvo', value: 'Volvo' },
+  { label: 'TOGG', value: 'TOGG' },
+  { label: 'Tofaş', value: 'Tofaş' },
+  { label: 'Aston Martin', value: 'Aston Martin' },
+  { label: 'Bentley', value: 'Bentley' },
+  { label: 'Ferrari', value: 'Ferrari' },
+  { label: 'Lamborghini', value: 'Lamborghini' },
+  { label: 'Maserati', value: 'Maserati' },
+  { label: 'McLaren', value: 'McLaren' },
+  { label: 'Rolls-Royce', value: 'Rolls-Royce' },
+  { label: 'Daihatsu', value: 'Daihatsu' },
+  { label: 'Infiniti', value: 'Infiniti' },
+  { label: 'Isuzu', value: 'Isuzu' },
+  { label: 'SsangYong', value: 'SsangYong' },
+  { label: 'Iveco', value: 'Iveco' },
+  { label: 'MAN', value: 'MAN' },
+  { label: 'Scania', value: 'Scania' },
+  { label: 'Temsa', value: 'Temsa' },
+  { label: 'Ducati', value: 'Ducati' },
+  { label: 'Harley-Davidson', value: 'Harley-Davidson' },
+  { label: 'Kawasaki', value: 'Kawasaki' },
+  { label: 'KTM', value: 'KTM' },
+  { label: 'Triumph', value: 'Triumph' },
+  { label: 'Yamaha', value: 'Yamaha' },
+  { label: 'BYD', value: 'BYD' },
+  { label: 'Chery', value: 'Chery' },
+  { label: 'Geely', value: 'Geely' },
+  { label: 'Great Wall', value: 'Great Wall' },
+  { label: 'MG', value: 'MG' }
 ];
 
 const mapBusinessToCardBusiness = (business: MongoBusiness): CardBusiness => {
@@ -73,6 +143,7 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [businesses, setBusinesses] = useState<MongoBusiness[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [availableDistricts, setAvailableDistricts] = useState<FilterOption[]>(getDistrictsForCity(''));
 
   const fetchBusinesses = useCallback(async () => {
     try {
@@ -114,6 +185,7 @@ export default function HomeScreen() {
       case 'city':
         setSelectedCity(value);
         setSelectedDistrict('');
+        setAvailableDistricts(getDistrictsForCity(value));
         break;
       case 'district':
         setSelectedDistrict(value);
@@ -126,6 +198,17 @@ export default function HomeScreen() {
         break;
     }
   }, []);
+
+  const handleRemoveFilters = useCallback(() => {
+    setSelectedCity('');
+    setSelectedDistrict('');
+    setSelectedCategory('');
+    setSelectedBrand('');
+    setAvailableDistricts(getDistrictsForCity(''));
+    fetchBusinesses();
+  }, [fetchBusinesses]);
+
+  const hasActiveFilters = selectedCity || selectedDistrict || selectedCategory || selectedBrand;
 
   const handleBusinessPress = useCallback((business: MongoBusiness) => {
     console.log('Business pressed:', business.name);
@@ -140,7 +223,10 @@ export default function HomeScreen() {
   const renderHeader = () => (
     <>
       <BannerSlider />
-      <PopularCategories />
+      <PopularCategories 
+        selectedCategory={selectedCategory}
+        onCategoryPress={(category) => handleFilterChange('category', category.value)}
+      />
     </>
   );
 
@@ -158,17 +244,28 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Header />
-      <FilterBar
-        cities={CITIES}
-        districts={DISTRICTS}
-        categories={CATEGORIES}
-        brands={BRANDS}
-        selectedCity={selectedCity}
-        selectedDistrict={selectedDistrict}
-        selectedCategory={selectedCategory}
-        selectedBrand={selectedBrand}
-        onFilterChange={handleFilterChange}
-      />
+      <View>
+        <FilterBar
+          cities={CITIES}
+          districts={availableDistricts}
+          categories={CATEGORIES}
+          brands={BRANDS}
+          selectedCity={selectedCity}
+          selectedDistrict={selectedDistrict}
+          selectedCategory={selectedCategory}
+          selectedBrand={selectedBrand}
+          onFilterChange={handleFilterChange}
+        />
+        {hasActiveFilters && (
+          <TouchableOpacity 
+            style={styles.removeFiltersButton} 
+            onPress={handleRemoveFilters}
+          >
+            <FontAwesome name="times-circle" size={16} color="#fff" />
+            <Text style={styles.removeFiltersText}>Filtreleri Temizle</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <FlatList
         data={businesses}
         keyExtractor={(item) => item._id.toString()}
@@ -244,6 +341,23 @@ const styles = StyleSheet.create({
   retryText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '500',
+  },
+  removeFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF3B30',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  removeFiltersText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '500',
   },
 });

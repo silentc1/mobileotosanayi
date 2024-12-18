@@ -17,12 +17,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'expo-router';
 
-type BusinessHours = {
-  day: string;
-  hours: string;
-  isOpen: boolean;
-};
-
 type Review = {
   id: string;
   userName: string;
@@ -49,7 +43,6 @@ export type Business = {
   website?: string;
   description: string;
   images: string[];
-  businessHours: BusinessHours[];
   reviews: Review[];
   services: Service[];
   latitude: number;
@@ -199,29 +192,6 @@ export default function BusinessCardDetails({
     ));
   };
 
-  const renderBusinessHours = () => {
-    if (!business.businessHours || business.businessHours.length === 0) {
-      return (
-        <View key="no-hours" style={styles.emptyContainer}>
-          <FontAwesome name="clock-o" size={32} color="#999" />
-          <Text style={styles.emptyText}>No business hours available</Text>
-        </View>
-      );
-    }
-
-    return business.businessHours.map((schedule, index) => (
-      <View key={`hours-${index}`} style={styles.scheduleRow}>
-        <Text style={styles.scheduleDay}>{schedule.day}</Text>
-        <View style={styles.scheduleStatus}>
-          <View style={[styles.statusDot, schedule.isOpen ? styles.openDot : styles.closedDot]} />
-          <Text style={[styles.scheduleHours, schedule.isOpen && styles.openHours]}>
-            {schedule.hours}
-          </Text>
-        </View>
-      </View>
-    ));
-  };
-
   const renderServices = () => {
     if (!business.services || business.services.length === 0) {
       return (
@@ -349,14 +319,6 @@ export default function BusinessCardDetails({
                 </View>
                 <Text style={styles.actionButtonText}>Share</Text>
               </TouchableOpacity>
-            </View>
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <FontAwesome name="clock-o" size={18} color="#333" />
-                <Text style={styles.sectionTitle}>Business Hours</Text>
-              </View>
-              {renderBusinessHours()}
             </View>
 
             <View style={styles.section}>
@@ -514,41 +476,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     marginLeft: 8,
-  },
-  scheduleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  scheduleDay: {
-    fontSize: 14,
-    color: '#444',
-    fontWeight: '500',
-  },
-  scheduleStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  openDot: {
-    backgroundColor: '#4CAF50',
-  },
-  closedDot: {
-    backgroundColor: '#FF5252',
-  },
-  scheduleHours: {
-    fontSize: 14,
-    color: '#666',
-  },
-  openHours: {
-    color: '#4CAF50',
-    fontWeight: '500',
   },
   serviceItem: {
     marginBottom: 16,

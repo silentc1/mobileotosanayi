@@ -13,47 +13,47 @@ type Category = {
   title: string;
   icon: string;
   color: string;
+  value: string;
 };
 
 const CATEGORIES: Category[] = [
-  { id: '1', title: 'Servisler', icon: 'wrench', color: '#FF6B6B' },
-  { id: '2', title: 'Kaportacılar', icon: 'car', color: '#4ECDC4' },
-  { id: '3', title: 'Lastikçiler', icon: 'circle', color: '#45B7D1' },
-  { id: '4', title: 'Parçacılar', icon: 'cogs', color: '#96CEB4' },
-  { id: '5', title: 'Motorsikletciler', icon: 'motorcycle', color: '#D4A5A5' },
-  { id: '6', title: 'Egzozcular', icon: 'filter', color: '#FF9F1C' },
-  { id: '7', title: 'Boyacılar', icon: 'paint-brush', color: '#E63946' },
-  { id: '8', title: 'Ekspertizler', icon: 'search', color: '#2A9D8F' },
-  { id: '9', title: 'Frenciler', icon: 'stop', color: '#E9C46A' },
-  { id: '10', title: 'Aksesuarcılar', icon: 'star', color: '#F4A261' },
-  { id: '11', title: 'Elektrikçiler', icon: 'bolt', color: '#264653' },
-  { id: '12', title: 'Turbocular', icon: 'tachometer', color: '#023E8A' },
-  { id: '13', title: 'Yazılımcılar', icon: 'code', color: '#2B9348' },
-  { id: '14', title: 'Cam Film ve Kaplamacılar', icon: 'film', color: '#6A4C93' },
-  { id: '15', title: 'Kilitciler', icon: 'lock', color: '#B5838D' },
-  { id: '16', title: 'Yıkamacılar', icon: 'tint', color: '#457B9D' },
-  { id: '17', title: 'Tunningciler', icon: 'rocket', color: '#BC6C25' },
-  { id: '18', title: 'Rot Balanscılar', icon: 'balance-scale', color: '#606C38' },
-  { id: '19', title: 'Oto Kuaförler', icon: 'magic', color: '#9B5DE5' },
-  { id: '20', title: 'Oto Döşemeciler', icon: 'car', color: '#F15BB5' },
-  { id: '21', title: 'Camcılar', icon: 'square', color: '#00BBF9' },
-  { id: '22', title: 'Jantcılar', icon: 'circle', color: '#00F5D4' },
+  { id: '1', title: 'Servis', icon: 'wrench', color: '#FF6B6B', value: 'Servisler' },
+  { id: '2', title: 'Kaportacı', icon: 'car', color: '#4ECDC4', value: 'Kaportacılar' },
+  { id: '3', title: 'Lastik', icon: 'circle', color: '#45B7D1', value: 'Lastikçiler' },
+  { id: '4', title: 'Parça', icon: 'cogs', color: '#96CEB4', value: 'Parçacılar' },
+  { id: '5', title: 'Motor', icon: 'motorcycle', color: '#D4A5A5', value: 'Motorsikletciler' },
+  { id: '6', title: 'Egzoz', icon: 'filter', color: '#FF9F1C', value: 'Egzozcular' },
+  { id: '7', title: 'Boyacı', icon: 'paint-brush', color: '#E63946', value: 'Boyacılar' },
+  { id: '8', title: 'Ekspertiz', icon: 'search', color: '#2A9D8F', value: 'Ekspertizler' },
+  { id: '9', title: 'Fren', icon: 'stop', color: '#E9C46A', value: 'Frenler' },
+  { id: '10', title: 'Aksesuar', icon: 'star', color: '#F4A261', value: 'Aksesuarcılar' },
+  { id: '11', title: 'Elektrik', icon: 'bolt', color: '#264653', value: 'Elektrikçiler' },
+  { id: '12', title: 'Turbo', icon: 'tachometer', color: '#023E8A', value: 'Turbocular' },
+  { id: '13', title: 'Yazılım', icon: 'code', color: '#2B9348', value: 'Yazılımcılar' },
+  { id: '14', title: 'Cam Film ve Kaplama', icon: 'film', color: '#6A4C93', value: 'Cam Film ve Kaplamacılar' },
+  { id: '15', title: 'Kilit', icon: 'lock', color: '#B5838D', value: 'Kilitciler' },
+  { id: '16', title: 'Yıkama', icon: 'tint', color: '#457B9D', value: 'Yıkamacılar' },
+  { id: '17', title: 'Tuning', icon: 'rocket', color: '#BC6C25', value: 'Tunningciler' },
+  { id: '18', title: 'Rot Balans', icon: 'balance-scale', color: '#606C38', value: 'Rot Balanscılar' },
+  { id: '19', title: 'Kuaför', icon: 'magic', color: '#9B5DE5', value: 'Oto Kuaförler' },
+  { id: '20', title: 'Döşeme', icon: 'car', color: '#F15BB5', value: 'Oto Döşemeciler' },
+  { id: '21', title: 'Cam', icon: 'square', color: '#00BBF9', value: 'Camcılar' },
+  { id: '22', title: 'Jant', icon: 'circle', color: '#00F5D4', value: 'Jantcılar' },
 ];
 
 type PopularCategoriesProps = {
   onCategoryPress?: (category: Category) => void;
   onSeeAllPress?: () => void;
+  selectedCategory?: string;
 };
 
-export default function PopularCategories({ onCategoryPress, onSeeAllPress }: PopularCategoriesProps) {
+export default function PopularCategories({ 
+  onCategoryPress, 
+  onSeeAllPress,
+  selectedCategory 
+}: PopularCategoriesProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Kategoriler</Text>
-        <TouchableOpacity onPress={onSeeAllPress}>
-          <Text style={styles.seeAll}>Tümünü Gör</Text>
-        </TouchableOpacity>
-      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -62,14 +62,33 @@ export default function PopularCategories({ onCategoryPress, onSeeAllPress }: Po
         {CATEGORIES.map((category) => (
           <TouchableOpacity
             key={category.id}
-            style={styles.categoryCard}
+            style={[
+              styles.categoryCard,
+              selectedCategory === category.value && styles.selectedCategoryCard
+            ]}
             activeOpacity={0.7}
             onPress={() => onCategoryPress?.(category)}
           >
-            <View style={[styles.iconContainer, { backgroundColor: category.color }]}>
-              <FontAwesome name={category.icon} size={24} color="white" />
+            <View 
+              style={[
+                styles.iconContainer, 
+                { backgroundColor: selectedCategory === category.value ? '#fff' : category.color }
+              ]}
+            >
+              <FontAwesome 
+                name={category.icon} 
+                size={24} 
+                color={selectedCategory === category.value ? category.color : 'white'} 
+              />
             </View>
-            <Text style={styles.categoryTitle}>{category.title}</Text>
+            <Text 
+              style={[
+                styles.categoryTitle,
+                selectedCategory === category.value && styles.selectedCategoryTitle
+              ]}
+            >
+              {category.title}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -82,23 +101,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     paddingVertical: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  seeAll: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
   scrollContent: {
     paddingHorizontal: 12,
     paddingRight: 20,
@@ -107,6 +109,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 8,
     width: 80,
+    borderRadius: 12,
+    padding: 8,
+  },
+  selectedCategoryCard: {
+    backgroundColor: '#007AFF',
   },
   iconContainer: {
     width: 64,
@@ -129,5 +136,8 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  selectedCategoryTitle: {
+    color: '#fff',
   },
 }); 
