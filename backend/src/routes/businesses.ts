@@ -56,13 +56,22 @@ function isValidObjectId(id: string): boolean {
 // Get all businesses
 router.get('/', async (req, res) => {
   try {
+    console.log('GET /businesses - Fetching all businesses');
     const db: Db = req.app.locals.db;
+    
+    console.log('Database connection:', !!db); // Check if db is available
+    
     const businesses = await db.collection(COLLECTIONS.BUSINESSES)
       .find()
       .sort({ rating: -1 })
       .toArray();
 
-    res.json(businesses.map(convertToBusiness));
+    console.log(`Found ${businesses.length} businesses`);
+    
+    const convertedBusinesses = businesses.map(convertToBusiness);
+    console.log('First business:', convertedBusinesses[0] || 'No businesses found');
+    
+    res.json(convertedBusinesses);
   } catch (error) {
     console.error('Error getting businesses:', error);
     res.status(500).json({ error: 'Failed to get businesses' });

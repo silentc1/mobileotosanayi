@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { UserRepository } from '../repositories/user.repository';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -17,6 +18,11 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string(),
+  newPassword: z.string().min(6),
 });
 
 // Register route
@@ -206,6 +212,44 @@ router.put('/update', async (req, res) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
     console.error('Update user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Change password route
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const validation = changePasswordSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.errors });
+    }
+
+    const { currentPassword, newPassword } = validation.data;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const db = req.app.locals.db;
+    const user = await UserRepository.findById(db, userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    const isPasswordValid = await UserRepository.verifyPassword(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: 'Mevcut şifre yanlış' });
+    }
+
+    // Update password
+    await UserRepository.updatePassword(db, userId, newPassword);
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

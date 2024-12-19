@@ -592,6 +592,7 @@ export default function BusinessCardDetails({
                       setNewReview({ ...newReview, text: text })
                     }
                   />
+                  <Text style={styles.anonymousNote}>* Yorumlarınız anonim olarak saklanacaktır</Text>
                   <TouchableOpacity
                     style={[
                       styles.submitButton,
@@ -965,5 +966,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
     marginLeft: 4,
+  },
+  anonymousNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 12,
+    textAlign: 'center',
   },
 }); 

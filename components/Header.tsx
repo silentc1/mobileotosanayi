@@ -19,7 +19,7 @@ export default function Header() {
 
   const handleAuthPress = () => {
     if (user) {
-      router.push('/profile');
+      router.push('/profilim');
     } else {
       router.push('/login');
     }

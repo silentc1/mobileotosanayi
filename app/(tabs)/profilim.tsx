@@ -50,21 +50,9 @@ export default function ProfilimScreen() {
       onPress: () => router.push('/(screens)/profile/personal-info'),
     },
     {
-      icon: 'star',
-      title: 'Değerlendirmelerim',
-      subtitle: 'Yaptığınız değerlendirmeler',
-      onPress: () => router.push('/(screens)/profile/my-reviews'),
-    },
-    {
       icon: 'heart',
       title: 'Favorilerim',
       subtitle: 'Favori işletmeleriniz',
-      onPress: () => {},
-    },
-    {
-      icon: 'bell',
-      title: 'Bildirimler',
-      subtitle: 'Bildirim ayarları',
       onPress: () => {},
     },
     {

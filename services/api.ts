@@ -3,16 +3,17 @@ import { authService } from './auth';
 import Constants from 'expo-constants';
 
 // Get the server URL from environment variables or use a fallback
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 
-                process.env.EXPO_PUBLIC_API_URL || 
-                'http://localhost:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
 
 console.log('Using API URL:', API_URL); // Debug log
 
 class ApiService {
   private static instance: ApiService;
+  private baseUrl: string;
 
-  private constructor() {}
+  private constructor() {
+    this.baseUrl = API_URL;
+  }
 
   public static getInstance(): ApiService {
     if (!ApiService.instance) {
@@ -21,69 +22,103 @@ class ApiService {
     return ApiService.instance;
   }
 
-  private async fetchWithAuth(endpoint: string, options: RequestInit = {}) {
-    const token = await authService.getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    };
+  private async fetch(endpoint: string, options: RequestInit = {}): Promise<any> {
+    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    console.log('Fetching URL:', url); // Debug log
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers,
-        signal: controller.signal
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', {
+        status: response.status,
+        url,
+        errorText,
       });
-
-      clearTimeout(timeoutId);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const error = new Error(data.message || 'Something went wrong');
-        (error as any).response = {
-          status: response.status,
-          data: data
-        };
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error('Request timed out. Please check your internet connection and try again.');
-        }
-        throw error;
-      }
-      throw new Error('Something went wrong');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    return response.json();
+  }
+
+  private async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<any> {
+    const token = await authService.getToken();
+    return this.fetch(endpoint, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // Acil services
+  public async getAcilServices(filters?: {
+    sehir?: string;
+    ilce?: string;
+    kategori?: string;
+  }): Promise<{
+    services: any[];
+    filters: {
+      sehirler: string[];
+      ilceler: string[];
+      kategoriler: string[];
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (filters?.sehir) queryParams.append('sehir', filters.sehir);
+    if (filters?.ilce) queryParams.append('ilce', filters.ilce);
+    if (filters?.kategori) queryParams.append('kategori', filters.kategori);
+
+    const queryString = queryParams.toString();
+    return this.fetch(`/acil${queryString ? `?${queryString}` : ''}`);
+  }
+
+  public async createAcilService(data: {
+    acilType: string;
+    acilSehir: string;
+    acilIlce: string;
+    acilNo: string;
+  }): Promise<{ _id: string }> {
+    return this.fetchWithAuth('/acil', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async updateAcilServiceStatus(id: string, isOpen: boolean): Promise<void> {
+    return this.fetchWithAuth(`/acil/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isOpen }),
+    });
   }
 
   // Business endpoints
   public async getAllBusinesses(): Promise<Business[]> {
-    return this.fetchWithAuth('/businesses');
+    return this.fetch('/businesses');
   }
 
   public async getBusinessById(id: string): Promise<Business> {
-    return this.fetchWithAuth(`/businesses/${id}`);
+    return this.fetch(`/businesses/${id}`);
   }
 
   public async getBusinessesByCategory(category: string): Promise<Business[]> {
-    return this.fetchWithAuth(`/businesses/category/${encodeURIComponent(category)}`);
+    return this.fetch(`/businesses/category/${encodeURIComponent(category)}`);
   }
 
   // Review endpoints
-  public async getBusinessReviews(businessId: string): Promise<Review[]> {
-    return this.fetchWithAuth(`/reviews/business/${businessId}`);
+  public async getBusinessReviews(businessId: string): Promise<any> {
+    return this.fetch(`/reviews/business/${businessId}`);
   }
 
   public async getUserReviews(): Promise<Review[]> {
-    return this.fetchWithAuth(`/reviews/user`);
+    return this.fetch('/reviews/user');
   }
 
   public async createReview(review: {
@@ -91,7 +126,7 @@ class ApiService {
     rating: number;
     text: string;
     authorName: string;
-  }): Promise<Review> {
+  }): Promise<any> {
     return this.fetchWithAuth(`/reviews/business/${review.businessId}`, {
       method: 'POST',
       body: JSON.stringify({
@@ -105,7 +140,7 @@ class ApiService {
   public async updateReview(reviewId: string, update: {
     rating?: number;
     comment?: string;
-  }): Promise<Review> {
+  }): Promise<any> {
     return this.fetchWithAuth(`/reviews/${reviewId}`, {
       method: 'PUT',
       body: JSON.stringify(update),
@@ -118,9 +153,20 @@ class ApiService {
     });
   }
 
-  public async likeReview(reviewId: string): Promise<Review> {
+  public async likeReview(reviewId: string): Promise<any> {
     return this.fetchWithAuth(`/reviews/${reviewId}/like`, {
       method: 'POST',
+    });
+  }
+
+  // Password change endpoint
+  public async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> {
+    return this.fetchWithAuth('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 }
