@@ -24,27 +24,66 @@ class ApiService {
 
   private async fetch(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    console.log('Fetching URL:', url); // Debug log
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+    console.log('Fetching URL:', url);
+    console.log('Request options:', {
+      method: options.method || 'GET',
+      hasBody: !!options.body,
+      headers: options.headers,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', {
-        status: response.status,
-        url,
-        errorText,
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
       });
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
-    return response.json();
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.log('Error response:', errorData);
+
+        // Try to parse error data as JSON
+        let parsedError;
+        try {
+          parsedError = JSON.parse(errorData);
+        } catch {
+          parsedError = { error: errorData };
+        }
+
+        // For rate limit errors, return a special response instead of throwing
+        if (response.status === 429) {
+          return {
+            error: true,
+            status: 429,
+            message: 'Rate limit exceeded',
+            details: 'You can only review a business once per week'
+          };
+        }
+
+        // For other errors, throw as usual
+        const error = new Error(parsedError.message || parsedError.error || 'API request failed');
+        (error as any).response = {
+          status: response.status,
+          data: parsedError
+        };
+        throw error;
+      }
+
+      const data = await response.json();
+      console.log('Response data:', {
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        keys: data ? Object.keys(data) : null,
+      });
+      return data;
+    } catch (error) {
+      console.error('Fetch error:', error);
+      throw error;
+    }
   }
 
   private async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<any> {
@@ -165,6 +204,25 @@ class ApiService {
     newPassword: string;
   }): Promise<void> {
     return this.fetchWithAuth('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Campaign endpoints
+  public async getCampaigns(): Promise<any> {
+    console.log('Fetching campaigns...'); // Debug log
+    return this.fetch('/campaigns');
+  }
+
+  public async createCampaign(data: {
+    title: string;
+    description: string;
+    startDate: string;
+    endDate: string;
+    businessId: string;
+  }): Promise<any> {
+    return this.fetchWithAuth('/campaigns', {
       method: 'POST',
       body: JSON.stringify(data),
     });

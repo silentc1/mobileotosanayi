@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+import { config } from '../config';
 
 declare global {
   namespace Express {
@@ -26,13 +25,16 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const user = jwt.verify(token, JWT_SECRET) as {
+    console.log('Verifying token with secret:', config.jwtSecret ? '***' + config.jwtSecret.slice(-6) : 'NOT SET'); // Debug log
+    const user = jwt.verify(token, config.jwtSecret) as {
       userId: string;
       email: string;
       fullName: string;
       avatar?: string;
       role: string;
     };
+
+    console.log('Token verified successfully:', { userId: user.userId }); // Debug log
 
     req.user = {
       id: user.userId,
@@ -44,6 +46,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
     next();
   } catch (error) {
+    console.error('Token verification failed:', error); // Debug log
     return res.status(403).json({ error: 'Invalid or expired token' });
   }
 }; 

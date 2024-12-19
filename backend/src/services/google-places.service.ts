@@ -1,5 +1,6 @@
 import { Client, PlaceData, Language } from '@googlemaps/google-maps-services-js';
 import { config } from '../config';
+import { Review } from '../types/business';
 
 export class GooglePlacesService {
   private static instance: GooglePlacesService;
@@ -20,12 +21,7 @@ export class GooglePlacesService {
     name: string;
     rating: number;
     reviewCount: number;
-    reviews: Array<{
-      rating: number;
-      text: string;
-      time: number;
-      authorName: string;
-    }>;
+    reviews: Review[];
     address: string;
     phone?: string;
     website?: string;
@@ -62,11 +58,12 @@ export class GooglePlacesService {
         throw new Error(`No place details found for placeId: ${placeId}. Status: ${response.data.status}`);
       }
 
-      const reviews = (place.reviews || []).map(review => ({
+      const reviews: Review[] = (place.reviews || []).map(review => ({
         rating: review.rating,
         text: review.text,
         time: typeof review.time === 'string' ? Date.parse(review.time) : review.time,
         authorName: review.author_name,
+        userId: `google_${review.author_name.toLowerCase().replace(/\s+/g, '_')}`, // Create a consistent userId for Google reviews
       }));
 
       console.log('=== Processed Data ===');

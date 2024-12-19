@@ -5,6 +5,7 @@ export interface Review {
   text: string;
   time: number;
   authorName: string;
+  userId: string;
 }
 
 export interface Business {

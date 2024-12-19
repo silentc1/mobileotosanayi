@@ -3,9 +3,9 @@ import { UserRepository } from '../repositories/user.repository';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth';
+import { config } from '../config';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -53,10 +53,16 @@ router.post('/register', async (req, res) => {
       isEmailVerified: false,
     });
 
+    console.log('Creating token for new user:', { // Debug log
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
+      config.jwtSecret,
       { expiresIn: '7d' }
     );
 
@@ -101,10 +107,16 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log('Creating token for login:', { // Debug log
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
+      config.jwtSecret,
       { expiresIn: '7d' }
     );
 
@@ -127,17 +139,15 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user route
-router.get('/me', async (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     const db = req.app.locals.db;
-
-    const user = await UserRepository.findById(db, decoded.userId);
+    const user = await UserRepository.findById(db, userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -152,23 +162,19 @@ router.get('/me', async (req, res) => {
       },
     });
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
     console.error('Get current user error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Update user route
-router.put('/update', async (req, res) => {
+router.put('/update', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     const db = req.app.locals.db;
 
     // Validate update data
@@ -186,7 +192,7 @@ router.put('/update', async (req, res) => {
     const updateData = validation.data;
 
     try {
-      const updatedUser = await UserRepository.update(db, decoded.userId, updateData);
+      const updatedUser = await UserRepository.update(db, userId, updateData);
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
       }
@@ -208,9 +214,6 @@ router.put('/update', async (req, res) => {
       throw error;
     }
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
     console.error('Update user error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

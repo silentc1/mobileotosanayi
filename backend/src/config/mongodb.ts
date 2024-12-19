@@ -7,17 +7,22 @@ export const COLLECTIONS = {
   USERS: 'users',
   BUSINESSES: 'businesses',
   REVIEWS: 'reviews',
-  ACIL: 'acil'
+  ACIL: 'acil',
+  CAMPAIGNS: 'kampanyalar'
 };
 
 let db: Db | null = null;
 
 export async function connectToDatabase(): Promise<Db> {
-  if (db) return db;
+  if (db) {
+    console.log('Using existing database connection');
+    return db;
+  }
 
   try {
     console.log('Connecting to MongoDB Atlas...');
     console.log('Database name:', DB_NAME);
+    console.log('MongoDB URI:', MONGODB_URI.replace(/:[^:@]+@/, ':****@')); // Hide password in logs
     
     const client = await MongoClient.connect(MONGODB_URI);
     db = client.db(DB_NAME);
@@ -25,6 +30,16 @@ export async function connectToDatabase(): Promise<Db> {
     // Verify collections exist
     const collections = await db.listCollections().toArray();
     console.log('Available collections:', collections.map(c => c.name));
+    
+    // Verify kampanyalar collection exists
+    const kampanyalarExists = collections.some(c => c.name === COLLECTIONS.CAMPAIGNS);
+    console.log('Kampanyalar collection exists:', kampanyalarExists);
+    
+    if (!kampanyalarExists) {
+      console.log('Creating kampanyalar collection...');
+      await db.createCollection(COLLECTIONS.CAMPAIGNS);
+      console.log('Kampanyalar collection created successfully');
+    }
     
     return db;
   } catch (error) {

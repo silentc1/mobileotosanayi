@@ -204,30 +204,29 @@ export default function BusinessCardDetails({
 
     try {
       setIsSubmittingReview(true);
-      await apiService.createReview({
+      const response = await apiService.createReview({
         businessId: business.id || business._id,
         rating: newReview.rating,
         text: newReview.text,
         authorName: user?.name || 'Anonymous'
       });
 
-      // Reset form and reload reviews
-      setNewReview({ rating: 0, text: '', authorName: user?.name || 'Anonymous' });
-      await loadReviews();
-      Alert.alert('Başarılı', 'Yorumunuz başarıyla eklendi');
-    } catch (error: any) {
-      // Check for rate limit error
-      if (error?.response?.status === 429) {
+      // Check if we got a rate limit response
+      if (response?.error && response?.status === 429) {
         Alert.alert(
           'Haftalık Yorum Limiti',
           'Her işletme için haftada bir yorum yapabilirsiniz. Lütfen bir sonraki hafta tekrar deneyiniz.',
-          [{ text: 'Anladım', style: 'default' }]
+          [{ text: 'Tamam', style: 'default' }]
         );
         return;
       }
 
-      // Handle other errors
-      console.error('Error submitting review:', error);
+      // If successful, reset form and reload reviews
+      setNewReview({ rating: 0, text: '', authorName: user?.name || 'Anonymous' });
+      await loadReviews();
+      Alert.alert('Başarılı', 'Yorumunuz başarıyla eklendi');
+    } catch (error: any) {
+      console.log('Review submission error:', error);
       Alert.alert(
         'Uyarı',
         'Yorum gönderilemedi. Lütfen daha sonra tekrar deneyiniz.',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,105 +7,127 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
+import { Campaign } from '../../models/Campaign';
+import { apiService } from '../../services/api';
 
-type Campaign = {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  brand: string;
-  validUntil: string;
-  discount: string;
-};
-
-const SAMPLE_CAMPAIGNS: Campaign[] = [
-  {
-    id: '1',
-    title: 'BMW Service Campaign',
-    description: 'Get 20% off on all BMW service packages',
-    image: 'https://images.unsplash.com/photo-1556189250-72ba954cfc2b?auto=format&fit=crop&w=800&q=80',
-    brand: 'BMW',
-    validUntil: '2024-03-31',
-    discount: '20%',
-  },
-  {
-    id: '2',
-    title: 'Mercedes Summer Check',
-    description: 'Free summer check for all Mercedes vehicles',
-    image: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80',
-    brand: 'Mercedes',
-    validUntil: '2024-06-30',
-    discount: 'FREE',
-  },
-];
+const { width } = Dimensions.get('window');
+const cardWidth = width - 32;
 
 export default function CampaignsScreen() {
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => {
+  const loadCampaigns = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getCampaigns();
+      if (response && response.campaigns) {
+        setCampaigns(response.campaigns);
+        setError(null);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      console.error('Error loading campaigns:', errorMessage);
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
       setRefreshing(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    loadCampaigns();
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadCampaigns();
+  };
 
   const renderCampaign = ({ item }: { item: Campaign }) => {
     const validUntilDate = new Date(item.validUntil);
-    const formattedDate = validUntilDate.toLocaleDateString('en-US', {
+    const formattedDate = validUntilDate.toLocaleDateString('tr-TR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
     return (
-      <TouchableOpacity style={styles.campaignCard} activeOpacity={0.7}>
-        <Image source={{ uri: item.image }} style={styles.campaignImage} />
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>{item.discount}</Text>
-        </View>
-        <View style={styles.cardContent}>
-          <View style={styles.brandBadge}>
-            <Text style={styles.brandText}>{item.brand}</Text>
+      <View style={styles.card}>
+        <Image
+          source={{ uri: item.image }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+        <View style={styles.contentContainer}>
+          <View style={styles.businessBadge}>
+            <Text style={styles.businessText}>{item.business}</Text>
           </View>
           <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <View style={styles.brandsContainer}>
+            {item.brands.map((brand, index) => (
+              <View key={index} style={styles.brandBadge}>
+                <Text style={styles.brandText}>{brand}</Text>
+              </View>
+            ))}
+          </View>
           <View style={styles.footer}>
-            <View style={styles.validUntil}>
+            <View style={styles.dateContainer}>
               <FontAwesome name="calendar" size={14} color="#666" />
-              <Text style={styles.validUntilText}>
-                Valid until {formattedDate}
-              </Text>
+              <Text style={styles.dateText}>{formattedDate}</Text>
             </View>
-            <TouchableOpacity style={styles.detailsButton}>
-              <Text style={styles.detailsButtonText}>View Details</Text>
-              <FontAwesome name="chevron-right" size={12} color="#007AFF" />
-            </TouchableOpacity>
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>{item.discount}</Text>
+            </View>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadCampaigns}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Campaigns</Text>
-        <TouchableOpacity style={styles.filterButton}>
-          <FontAwesome name="sliders" size={16} color="#666" />
-          <Text style={styles.filterButtonText}>Filter</Text>
-        </TouchableOpacity>
       </View>
       <FlatList
-        data={SAMPLE_CAMPAIGNS}
+        data={campaigns}
         renderItem={renderCampaign}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       />
     </SafeAreaView>
@@ -115,124 +137,140 @@ export default function CampaignsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: '#f5f5f5',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#1a1a1a',
   },
-  filterButton: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F0F0F0',
   },
-  filterButtonText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  listContent: {
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 16,
-    gap: 16,
   },
-  campaignCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    overflow: 'hidden',
+  errorText: {
+    fontSize: 16,
+    color: '#ff3b30',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  card: {
+    width: cardWidth,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 3,
-    marginBottom: 16,
+    overflow: 'hidden',
   },
-  campaignImage: {
+  image: {
     width: '100%',
     height: 200,
-    backgroundColor: '#F0F0F0',
   },
-  discountBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: '#FF3B30',
+  contentContainer: {
+    padding: 16,
+  },
+  businessBadge: {
+    backgroundColor: '#e3f2fd',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-  },
-  discountText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cardContent: {
-    padding: 16,
-    gap: 8,
-  },
-  brandBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E8F0FE',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
     borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
   },
-  brandText: {
-    color: '#007AFF',
-    fontSize: 12,
-    fontWeight: '500',
+  businessText: {
+    color: '#1976d2',
+    fontSize: 14,
+    fontWeight: '600',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1a1a1a',
+    marginBottom: 8,
   },
   description: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+  brandsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  brandBadge: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  brandText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
+    borderTopColor: '#e0e0e0',
   },
-  validUntil: {
+  dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
-  validUntilText: {
-    fontSize: 12,
+  dateText: {
     color: '#666',
-  },
-  detailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  detailsButtonText: {
     fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
+  },
+  discountBadge: {
+    backgroundColor: '#ff3b30',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  discountText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

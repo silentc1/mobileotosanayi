@@ -4,11 +4,12 @@ import { COLLECTIONS } from '../constants';
 import { Business, Review } from '../types/business';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
 // Helper function to check if user has reviewed in the last week
-async function hasReviewedInLastWeek(db: Db, businessId: string, authorName: string): Promise<boolean> {
+async function hasReviewedInLastWeek(db: Db, businessId: string, userId: string): Promise<boolean> {
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -16,7 +17,7 @@ async function hasReviewedInLastWeek(db: Db, businessId: string, authorName: str
     _id: new ObjectId(businessId),
     appreviews: {
       $elemMatch: {
-        authorName: authorName,
+        userId: userId,
         time: {
           $gte: oneWeekAgo.getTime()
         }
@@ -57,10 +58,15 @@ router.get('/business/:businessId', async (req, res) => {
 });
 
 // Add a new app review
-router.post('/business/:businessId', async (req, res) => {
+router.post('/business/:businessId', authenticateToken, async (req, res) => {
   try {
     const { businessId } = req.params;
     const { rating, text, authorName } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     if (!ObjectId.isValid(businessId)) {
       return res.status(400).json({ error: 'Invalid business ID format' });
@@ -73,7 +79,7 @@ router.post('/business/:businessId', async (req, res) => {
     const db: Db = req.app.locals.db;
 
     // Check if user has already reviewed this business in the last week
-    const hasReviewed = await hasReviewedInLastWeek(db, businessId, authorName);
+    const hasReviewed = await hasReviewedInLastWeek(db, businessId, userId);
     if (hasReviewed) {
       return res.status(429).json({ 
         error: 'Rate limit exceeded',
@@ -85,15 +91,23 @@ router.post('/business/:businessId', async (req, res) => {
       rating: Number(rating),
       text,
       authorName,
+      userId,
       time: new Date().getTime(),
     };
+
+    console.log('Creating review:', { // Debug log
+      businessId,
+      userId,
+      rating,
+      authorName
+    });
 
     const result = await db.collection<Business>(COLLECTIONS.BUSINESSES).findOneAndUpdate(
       { _id: new ObjectId(businessId) },
       { 
         $push: { 
           "appreviews": review
-        } as any,
+        },
         $set: { updatedAt: new Date() }
       },
       { returnDocument: 'after' }
@@ -103,6 +117,7 @@ router.post('/business/:businessId', async (req, res) => {
       return res.status(404).json({ error: 'Business not found' });
     }
 
+    console.log('Review created successfully:', review); // Debug log
     res.json(review);
   } catch (error) {
     console.error('Error adding review:', error);
@@ -111,9 +126,14 @@ router.post('/business/:businessId', async (req, res) => {
 });
 
 // Delete an app review
-router.delete('/business/:businessId/review/:reviewTime', async (req, res) => {
+router.delete('/business/:businessId/review/:reviewTime', authenticateToken, async (req, res) => {
   try {
     const { businessId, reviewTime } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     if (!ObjectId.isValid(businessId)) {
       return res.status(400).json({ error: 'Invalid business ID format' });
@@ -121,11 +141,15 @@ router.delete('/business/:businessId/review/:reviewTime', async (req, res) => {
 
     const db: Db = req.app.locals.db;
     const result = await db.collection<Business>(COLLECTIONS.BUSINESSES).findOneAndUpdate(
-      { _id: new ObjectId(businessId) },
+      { 
+        _id: new ObjectId(businessId),
+        "appreviews.userId": userId,
+        "appreviews.time": Number(reviewTime)
+      },
       { 
         $pull: { 
           "appreviews": { time: Number(reviewTime) }
-        } as any,
+        },
         $set: { updatedAt: new Date() }
       },
       { returnDocument: 'after' }
@@ -143,14 +167,14 @@ router.delete('/business/:businessId/review/:reviewTime', async (req, res) => {
 });
 
 // Get user reviews
-router.get('/user', async (req, res) => {
+router.get('/user', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, config.jwtSecret) as { userId: string };
     const db: Db = req.app.locals.db;
 
     // Get user's reviews with business details
@@ -158,7 +182,7 @@ router.get('/user', async (req, res) => {
       .aggregate([
         {
           $match: {
-            userId: new ObjectId(decoded.userId)
+            userId: new ObjectId(userId)
           }
         },
         {
@@ -192,9 +216,6 @@ router.get('/user', async (req, res) => {
 
     res.json(reviews);
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
     console.error('Get user reviews error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

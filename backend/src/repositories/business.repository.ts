@@ -1,6 +1,6 @@
 import { Db, ObjectId, WithId, Document } from 'mongodb';
 import { COLLECTIONS } from '../constants';
-import { Business } from '../types/business';
+import { Business, Review } from '../types/business';
 import { GooglePlacesService } from '../services/google-places.service';
 
 export class BusinessRepository {
@@ -14,6 +14,15 @@ export class BusinessRepository {
 
       const googlePlacesService = GooglePlacesService.getInstance();
       const placeDetails = await googlePlacesService.getPlaceDetails(placeId);
+
+      // Convert Google reviews to our Review type
+      const googleReviews: Review[] = placeDetails.reviews.map(review => ({
+        rating: review.rating,
+        text: review.text,
+        time: review.time,
+        authorName: review.authorName,
+        userId: 'google', // Use 'google' as userId for Google reviews
+      }));
 
       console.log('=== MongoDB Update Operation ===');
       console.log('Updating document with ID:', businessId);
@@ -37,7 +46,7 @@ export class BusinessRepository {
             address: placeDetails.address,
             phone: placeDetails.phone,
             website: placeDetails.website,
-            googleReviews: placeDetails.reviews,
+            googleReviews,
             updatedAt: new Date(),
             lastGoogleSync: new Date(),
           },

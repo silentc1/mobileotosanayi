@@ -5,6 +5,7 @@ import acilRoutes from './routes/acil';
 import authRoutes from './routes/auth';
 import businessRoutes from './routes/businesses';
 import reviewRoutes from './routes/reviews';
+import campaignRoutes from './routes/campaigns';
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/acil', acilRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

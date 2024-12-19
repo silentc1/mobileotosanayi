@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 // Get the server URL from environment variables or use a fallback
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 
                 process.env.EXPO_PUBLIC_API_URL || 
-                'http://localhost:3000/api';
+                'http://localhost:3001/api';
 
 console.log('Auth service using API URL:', API_URL); // Debug log
 
@@ -47,10 +47,17 @@ class AuthService {
 
   private async initializeFromStorage() {
     try {
+      console.log('Initializing auth from storage...'); // Debug log
       const [token, userData] = await Promise.all([
         AsyncStorage.getItem(AUTH_TOKEN_KEY),
         AsyncStorage.getItem(USER_DATA_KEY),
       ]);
+
+      console.log('Storage data:', { // Debug log
+        hasToken: !!token,
+        hasUserData: !!userData,
+        tokenPreview: token ? '***' + token.slice(-6) : 'NO TOKEN'
+      });
 
       if (token) {
         this.token = token;
@@ -59,6 +66,11 @@ class AuthService {
       if (userData) {
         this.user = JSON.parse(userData);
       }
+
+      console.log('Auth initialization complete:', { // Debug log
+        hasToken: !!this.token,
+        hasUser: !!this.user
+      });
     } catch (error) {
       console.error('Error initializing from storage:', error);
     }
@@ -73,6 +85,7 @@ class AuthService {
 
   public async register(data: RegisterData): Promise<AuthResponse> {
     try {
+      console.log('Registering new user:', { email: data.email }); // Debug log
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
@@ -87,6 +100,10 @@ class AuthService {
       }
 
       const result = await response.json();
+      console.log('Registration successful:', { // Debug log
+        hasToken: !!result.token,
+        user: result.user
+      });
       await this.saveAuthData(result.token, result.user);
       return result;
     } catch (error) {
@@ -97,6 +114,7 @@ class AuthService {
 
   public async login(data: LoginData): Promise<AuthResponse> {
     try {
+      console.log('Logging in user:', { email: data.email }); // Debug log
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
@@ -117,6 +135,10 @@ class AuthService {
       }
 
       const result = await response.json();
+      console.log('Login successful:', { // Debug log
+        hasToken: !!result.token,
+        user: result.user
+      });
       await this.saveAuthData(result.token, result.user);
       return result;
     } catch (error) {
@@ -133,28 +155,77 @@ class AuthService {
 
   public async logout(): Promise<void> {
     try {
+      console.log('Logging out user...'); // Debug log
       await Promise.all([
         AsyncStorage.removeItem(AUTH_TOKEN_KEY),
         AsyncStorage.removeItem(USER_DATA_KEY),
       ]);
       this.token = null;
       this.user = null;
+      console.log('Logout complete'); // Debug log
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
     }
   }
 
+  private async saveAuthData(token: string, user: User): Promise<void> {
+    try {
+      console.log('Saving auth data...'); // Debug log
+      await Promise.all([
+        AsyncStorage.setItem(AUTH_TOKEN_KEY, token),
+        AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user)),
+      ]);
+      this.token = token;
+      this.user = user;
+      console.log('Auth data saved successfully:', { // Debug log
+        hasToken: !!this.token,
+        hasUser: !!this.user,
+        tokenPreview: token ? '***' + token.slice(-6) : 'NO TOKEN'
+      });
+    } catch (error) {
+      console.error('Save auth data error:', error);
+      throw error;
+    }
+  }
+
+  public async getToken(): Promise<string | null> {
+    try {
+      console.log('Getting auth token...'); // Debug log
+      if (this.token) {
+        console.log('Using cached token:', '***' + this.token.slice(-6)); // Debug log
+        return this.token;
+      }
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      console.log('Token from storage:', token ? '***' + token.slice(-6) : 'NO TOKEN'); // Debug log
+      this.token = token;
+      return token;
+    } catch (error) {
+      console.error('Get token error:', error);
+      return null;
+    }
+  }
+
+  public async isAuthenticated(): Promise<boolean> {
+    const token = await this.getToken();
+    return !!token;
+  }
+
   public async getCurrentUser(): Promise<User | null> {
     try {
       // First check if we have a cached user
       if (this.user) {
+        console.log('Using cached user:', { email: this.user.email }); // Debug log
         return this.user;
       }
 
       const token = await this.getToken();
-      if (!token) return null;
+      if (!token) {
+        console.log('No token available for getCurrentUser'); // Debug log
+        return null;
+      }
 
+      console.log('Fetching current user from API...'); // Debug log
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -169,6 +240,7 @@ class AuthService {
 
       if (!response.ok) {
         if (response.status === 401) {
+          console.log('Token invalid, clearing auth data...'); // Debug log
           await this.logout();
           return null;
         }
@@ -176,6 +248,7 @@ class AuthService {
       }
 
       const { user } = await response.json();
+      console.log('Current user fetched successfully:', { email: user.email }); // Debug log
       this.user = user;
       await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
       return user;
@@ -191,8 +264,12 @@ class AuthService {
   public async updateUser(data: { fullName: string; email: string; phone?: string }): Promise<User | null> {
     try {
       const token = await this.getToken();
-      if (!token) return null;
+      if (!token) {
+        console.log('No token available for updateUser'); // Debug log
+        return null;
+      }
 
+      console.log('Updating user data...'); // Debug log
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -214,6 +291,7 @@ class AuthService {
       }
 
       const { user } = await response.json();
+      console.log('User data updated successfully:', { email: user.email }); // Debug log
       this.user = user;
       await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
       return user;
@@ -224,37 +302,6 @@ class AuthService {
       }
       throw error;
     }
-  }
-
-  private async saveAuthData(token: string, user: User): Promise<void> {
-    try {
-      await Promise.all([
-        AsyncStorage.setItem(AUTH_TOKEN_KEY, token),
-        AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user)),
-      ]);
-      this.token = token;
-      this.user = user;
-    } catch (error) {
-      console.error('Save auth data error:', error);
-      throw error;
-    }
-  }
-
-  public async getToken(): Promise<string | null> {
-    try {
-      if (this.token) return this.token;
-      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-      this.token = token;
-      return token;
-    } catch (error) {
-      console.error('Get token error:', error);
-      return null;
-    }
-  }
-
-  public async isAuthenticated(): Promise<boolean> {
-    const token = await this.getToken();
-    return !!token;
   }
 }
 
