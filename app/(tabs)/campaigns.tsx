@@ -118,7 +118,7 @@ export default function CampaignsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Campaigns</Text>
+        <Text style={styles.headerTitle}>Kampanyalar</Text>
       </View>
       <FlatList
         data={campaigns}

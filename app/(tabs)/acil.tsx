@@ -140,17 +140,27 @@ export default function AcilScreen() {
               >
                 <Text style={styles.pickerCloseButtonText}>Kapat</Text>
               </TouchableOpacity>
+              <Text style={styles.pickerTitle}>
+                {showPicker === 'sehir' ? 'Şehir Seçin' : showPicker === 'ilce' ? 'İlçe Seçin' : 'Kategori Seçin'}
+              </Text>
+              <View style={{ width: 50 }} />
             </View>
-            <Picker
-              selectedValue={selectedValue}
-              onValueChange={onValueChange}
-              style={styles.picker}
-            >
-              <Picker.Item label={`Tüm ${showPicker === 'sehir' ? 'Şehirler' : showPicker === 'ilce' ? 'İlçeler' : 'Kategoriler'}`} value="" />
-              {items.map((item) => (
-                <Picker.Item key={item} label={item} value={item} />
-              ))}
-            </Picker>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={selectedValue}
+                onValueChange={onValueChange}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+              >
+                <Picker.Item 
+                  label={`Tüm ${showPicker === 'sehir' ? 'Şehirler' : showPicker === 'ilce' ? 'İlçeler' : 'Kategoriler'}`} 
+                  value="" 
+                />
+                {items.map((item) => (
+                  <Picker.Item key={item} label={item} value={item} />
+                ))}
+              </Picker>
+            </View>
           </View>
         </View>
       </Modal>
@@ -258,10 +268,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filtersContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
   },
   filterItem: {
     marginBottom: 12,
@@ -280,22 +298,31 @@ const styles = StyleSheet.create({
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e1e1e1',
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   pickerButtonLabel: {
     fontSize: 14,
     color: '#666',
+    fontWeight: '500',
   },
   pickerButtonValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   modalContainer: {
     flex: 1,
@@ -303,10 +330,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   pickerModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingBottom: Platform.OS === 'ios' ? 34 : 0,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   pickerHeader: {
     flexDirection: 'row',
@@ -314,6 +349,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
+    backgroundColor: '#ffffff',
   },
   pickerCloseButton: {
     padding: 8,
@@ -325,6 +361,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 216,
+    backgroundColor: '#ffffff',
   },
   scrollView: {
     flex: 1,
@@ -425,5 +462,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+  },
+  pickerContainer: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e1e1e1',
+  },
+  pickerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    flex: 1,
+  },
+  pickerItem: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
 }); 

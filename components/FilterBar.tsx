@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -34,7 +34,7 @@ type FilterBarProps = {
   onClearFilters: () => void;
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function FilterBar({
   cities,
@@ -53,6 +53,28 @@ export default function FilterBar({
   const [searchQuery, setSearchQuery] = useState('');
   const [modalAnimation] = useState(new Animated.Value(0));
   const [fadeAnimation] = useState(new Animated.Value(0));
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   const getFilterOptions = () => {
     switch (activeFilter) {
@@ -69,14 +91,31 @@ export default function FilterBar({
     }
   };
 
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[ıİiI]/g, 'i')
+      .replace(/[şŞ]/g, 's')
+      .replace(/[ğĞ]/g, 'g')
+      .replace(/[üÜ]/g, 'u')
+      .replace(/[öÖ]/g, 'o')
+      .replace(/[çÇ]/g, 'c');
+  };
+
   const filteredOptions = useMemo(() => {
     const options = getFilterOptions();
     if (!searchQuery.trim()) return options;
     
-    return options.filter(option => 
-      option.label.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [activeFilter, searchQuery]);
+    const normalizedSearch = normalizeText(searchQuery);
+    return options.filter(option => {
+      const normalizedLabel = normalizeText(option.label);
+      const normalizedValue = normalizeText(option.value);
+      return normalizedLabel.includes(normalizedSearch) || normalizedValue.includes(normalizedSearch);
+    });
+  }, [activeFilter, searchQuery, getFilterOptions]);
 
   const getSelectedValue = (type: 'city' | 'district' | 'category' | 'brand') => {
     switch (type) {
@@ -236,8 +275,12 @@ export default function FilterBar({
 
   const modalTranslateY = modalAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [300, 0],
+    outputRange: [300, keyboardHeight ? -keyboardHeight : 0],
   });
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -265,67 +308,56 @@ export default function FilterBar({
       </View>
 
       <Modal
-        animationType="none"
+        animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={handleModalClose}
       >
-        <Animated.View 
-          style={[
-            styles.modalOverlay,
-            { opacity: fadeAnimation }
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.modalBackground}
-            activeOpacity={1}
-            onPress={handleModalClose}
-          >
-            <Animated.View
-              style={[
-                styles.modalContent,
-                {
-                  transform: [{ translateY: modalTranslateY }],
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={handleModalClose}
-                >
-                  <FontAwesome name="chevron-down" size={16} color="#666" />
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>
-                  {activeFilter ? getFilterTitle(activeFilter) : ''}
-                </Text>
-                <View style={styles.closeButton} />
-              </View>
+        <View style={styles.modalBackground}>
+          <View style={[
+            styles.modalContent,
+            {
+              maxHeight: keyboardHeight ? SCREEN_HEIGHT - keyboardHeight - 100 : '70%',
+              marginBottom: keyboardHeight
+            }
+          ]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleModalClose}
+              >
+                <FontAwesome name="chevron-down" size={16} color="#666" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>
+                {activeFilter ? getFilterTitle(activeFilter) : ''}
+              </Text>
+              <View style={styles.closeButton} />
+            </View>
 
-              <View style={styles.searchContainer}>
-                <FontAwesome name="search" size={16} color="#666" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Ara..."
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  clearButtonMode="while-editing"
-                />
-              </View>
-
-              <FlatList
-                data={filteredOptions}
-                renderItem={renderFilterOption}
-                keyExtractor={(item) => item.value}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.optionsList}
+            <View style={styles.searchContainer}>
+              <FontAwesome name="search" size={16} color="#666" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Ara..."
+                value={searchQuery}
+                onChangeText={handleSearchChange}
+                autoCorrect={false}
+                autoCapitalize="none"
+                clearButtonMode="while-editing"
               />
-            </Animated.View>
-          </TouchableOpacity>
-        </Animated.View>
+            </View>
+
+            <FlatList
+              data={filteredOptions}
+              renderItem={renderFilterOption}
+              keyExtractor={(item) => item.value}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.optionsList}
+              style={styles.optionsListContainer}
+            />
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -381,20 +413,24 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: 16,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   modalBackground: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 8,
-    maxHeight: SCREEN_WIDTH * 1.1,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -433,6 +469,9 @@ const styles = StyleSheet.create({
     height: 36,
     fontSize: 16,
     color: '#1a1a1a',
+  },
+  optionsListContainer: {
+    flexGrow: 0,
   },
   optionsList: {
     paddingHorizontal: 16,

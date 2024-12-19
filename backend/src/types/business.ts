@@ -1,5 +1,16 @@
 import { ObjectId } from 'mongodb';
 
+export interface User {
+  _id: ObjectId;
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
+  favorites?: ObjectId[]; // Favori işletmelerin ID'leri
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Review {
   rating: number;
   text: string;

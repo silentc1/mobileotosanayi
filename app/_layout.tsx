@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { StatusBar } from 'expo-status-bar';
 
 // This component handles protected routes and redirects
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -29,13 +30,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <AuthGuard>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </AuthGuard>
-    </AuthProvider>
+    <>
+      <StatusBar style="dark" backgroundColor="#f8f9fa" />
+      <AuthProvider>
+        <AuthGuard>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
+        </AuthGuard>
+      </AuthProvider>
+    </>
   );
 }

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth';
 import { config } from '../config';
+import { ObjectId } from 'mongodb';
 
 const router = Router();
 
@@ -254,6 +255,70 @@ router.post('/change-password', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/favorites/add', authenticateToken, async (req, res) => {
+  try {
+    const { businessId } = req.body;
+    const userId = (req as any).user._id;
+
+    const db = req.app.locals.db;
+    const usersCollection = db.collection('users');
+
+    await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $addToSet: { favorites: new ObjectId(businessId) } }
+    );
+
+    res.status(200).json({ message: 'İşletme favorilere eklendi' });
+  } catch (error) {
+    console.error('Favori ekleme hatası:', error);
+    res.status(500).json({ error: 'İşletme favorilere eklenirken bir hata oluştu' });
+  }
+});
+
+router.post('/favorites/remove', authenticateToken, async (req, res) => {
+  try {
+    const { businessId } = req.body;
+    const userId = (req as any).user._id;
+
+    const db = req.app.locals.db;
+    const usersCollection = db.collection('users');
+
+    await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $pull: { favorites: new ObjectId(businessId) } }
+    );
+
+    res.status(200).json({ message: 'İşletme favorilerden kaldırıldı' });
+  } catch (error) {
+    console.error('Favori kaldırma hatası:', error);
+    res.status(500).json({ error: 'İşletme favorilerden kaldırılırken bir hata oluştu' });
+  }
+});
+
+router.get('/favorites', authenticateToken, async (req, res) => {
+  try {
+    const userId = (req as any).user._id;
+
+    const db = req.app.locals.db;
+    const usersCollection = db.collection('users');
+    const businessesCollection = db.collection('businesses');
+
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    if (!user || !user.favorites) {
+      return res.status(200).json({ favorites: [] });
+    }
+
+    const favorites = await businessesCollection
+      .find({ _id: { $in: user.favorites } })
+      .toArray();
+
+    res.status(200).json({ favorites });
+  } catch (error) {
+    console.error('Favorileri getirme hatası:', error);
+    res.status(500).json({ error: 'Favoriler getirilirken bir hata oluştu' });
   }
 });
 

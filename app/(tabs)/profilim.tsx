@@ -53,7 +53,7 @@ export default function ProfilimScreen() {
       icon: 'heart',
       title: 'Favorilerim',
       subtitle: 'Favori işletmeleriniz',
-      onPress: () => {},
+      onPress: () => router.push('/(screens)/profile/favorites'),
     },
     {
       icon: 'shield',
