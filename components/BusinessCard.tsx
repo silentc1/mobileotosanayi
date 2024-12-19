@@ -63,11 +63,14 @@ export default function BusinessCard({
   }, [business]);
 
   const handlePress = () => {
+    setIsDetailsVisible(true);
     if (onPress) {
       onPress(business);
-    } else {
-      setIsDetailsVisible(true);
     }
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsVisible(false);
   };
 
   const renderStars = (rating: number) => {
@@ -96,6 +99,41 @@ export default function BusinessCard({
   const imageSource = business.images && business.images.length > 0 && !imageError
     ? { uri: business.images[0] }
     : { uri: DEFAULT_IMAGE };
+
+  const mapBusinessToDetailsType = (business: Business): BusinessDetailsType => {
+    // Safely handle the _id conversion
+    const businessId = business._id?.toString() || business.id?.toString() || '';
+    
+    return {
+      _id: business._id || '',
+      id: businessId,
+      name: business.name || '',
+      category: business.category || [],
+      rating: business.rating || business.averageRating || 0,
+      reviewCount: business.reviewCount || 0,
+      address: business.address || '',
+      phone: business.phone || '',
+      website: business.website || '',
+      description: business.description || '',
+      images: business.images || [],
+      businessHours: business.businessHours || [],
+      reviews: business.reviews || [],
+      services: (business.services || []).map((service, index) => ({
+        ...service,
+        id: service.id || `${businessId}-service-${index}`
+      })),
+      latitude: business.latitude || 0,
+      longitude: business.longitude || 0,
+      city: business.city || '',
+      ilce: business.ilce || '',
+      brands: business.brands || [],
+      placeId: business.placeId || '',
+      googleReviews: business.googleReviews || [],
+      lastGoogleSync: business.lastGoogleSync || '',
+      appreviews: business.appreviews || [],
+      ownerId: business.ownerId || '',
+    };
+  };
 
   return (
     <View style={styles.container}>
@@ -176,15 +214,13 @@ export default function BusinessCard({
         </View>
       </TouchableOpacity>
 
-      {isDetailsVisible && (
-        <BusinessCardDetails
-          business={business}
-          visible={isDetailsVisible}
-          onClose={() => setIsDetailsVisible(false)}
-          onFavoritePress={onFavoritePress}
-          isFavorite={isFavorite}
-        />
-      )}
+      <BusinessCardDetails
+        business={mapBusinessToDetailsType(business)}
+        visible={isDetailsVisible}
+        onClose={handleCloseDetails}
+        onFavoritePress={onFavoritePress ? () => onFavoritePress(business) : undefined}
+        isFavorite={isFavorite}
+      />
     </View>
   );
 }

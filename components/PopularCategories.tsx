@@ -32,7 +32,7 @@ const CATEGORIES: Category[] = [
   { id: '11', title: 'Elektrik', icon: 'bolt', color: '#264653', value: 'Elektrikçiler' },
   { id: '12', title: 'Turbo', icon: 'tachometer', color: '#023E8A', value: 'Turbocular' },
   { id: '13', title: 'Yazılım', icon: 'code', color: '#2B9348', value: 'Yazılımcılar' },
-  { id: '14', title: 'Cam Film ve Kaplama', icon: 'film', color: '#6A4C93', value: 'Cam Film ve Kaplamacılar' },
+  { id: '14', title: 'Kaplama', icon: 'film', color: '#6A4C93', value: 'Cam Film ve Kaplamacılar' },
   { id: '15', title: 'Kilit', icon: 'lock', color: '#B5838D', value: 'Kilitciler' },
   { id: '16', title: 'Yıkama', icon: 'tint', color: '#457B9D', value: 'Yıkamacılar' },
   { id: '17', title: 'Tuning', icon: 'rocket', color: '#BC6C25', value: 'Tunningciler' },
@@ -125,11 +125,13 @@ export default function PopularCategories({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    paddingVertical: 16,
+    paddingTop: 8,
+    paddingBottom: 0,
   },
   scrollContent: {
     paddingHorizontal: 12,
     paddingRight: 20,
+    paddingBottom: 8,
   },
   categoryCard: {
     alignItems: 'center',

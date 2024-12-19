@@ -12,6 +12,7 @@ import {
   Animated,
   Keyboard,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -30,32 +31,10 @@ type FilterBarProps = {
   selectedCategory: string;
   selectedBrand: string;
   onFilterChange: (filterType: 'city' | 'district' | 'category' | 'brand', value: string) => void;
+  onClearFilters: () => void;
 };
 
-const POPULAR_CATEGORIES: FilterOption[] = [
-  { label: 'Servisler', value: 'Servisler' },
-  { label: 'Kaportacılar', value: 'Kaportacılar' },
-  { label: 'Lastikçiler', value: 'Lastikçiler' },
-  { label: 'Parçacılar', value: 'Parçacılar' },
-  { label: 'Motorsikletciler', value: 'Motorsikletciler' },
-  { label: 'Egzozcular', value: 'Egzozcular' },
-  { label: 'Boyacılar', value: 'Boyacılar' },
-  { label: 'Ekspertizler', value: 'Ekspertizler' },
-  { label: 'Frenciler', value: 'Frenciler' },
-  { label: 'Aksesuarcılar', value: 'Aksesuarcılar' },
-  { label: 'Elektrikçiler', value: 'Elektrikçiler' },
-  { label: 'Turbocular', value: 'Turbocular' },
-  { label: 'Yazılımcılar', value: 'Yazılımcılar' },
-  { label: 'Cam Film ve Kaplamacılar', value: 'Cam Film ve Kaplamacılar' },
-  { label: 'Kilitciler', value: 'Kilitciler' },
-  { label: 'Yıkamacılar', value: 'Yıkamacılar' },
-  { label: 'Tunningciler', value: 'Tunningciler' },
-  { label: 'Rot Balanscılar', value: 'Rot Balanscılar' },
-  { label: 'Oto Kuaförler', value: 'Oto Kuaförler' },
-  { label: 'Oto Döşemeciler', value: 'Oto Döşemeciler' },
-  { label: 'Camcılar', value: 'Camcılar' },
-  { label: 'Jantcılar', value: 'Jantcılar' },
-];
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function FilterBar({
   cities,
@@ -67,6 +46,7 @@ export default function FilterBar({
   selectedCategory,
   selectedBrand,
   onFilterChange,
+  onClearFilters,
 }: FilterBarProps) {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'city' | 'district' | 'category' | 'brand' | null>(null);
@@ -108,6 +88,21 @@ export default function FilterBar({
         return selectedCategory;
       case 'brand':
         return selectedBrand;
+      default:
+        return '';
+    }
+  };
+
+  const getFilterTitle = (type: 'city' | 'district' | 'category' | 'brand') => {
+    switch (type) {
+      case 'city':
+        return 'Şehir Seçin';
+      case 'district':
+        return selectedCity ? `${selectedCity} İlçeleri` : 'İlçe Seçin';
+      case 'category':
+        return 'Kategori Seçin';
+      case 'brand':
+        return 'Marka Seçin';
       default:
         return '';
     }
@@ -162,49 +157,80 @@ export default function FilterBar({
     }, 300);
   };
 
+  const handleOptionSelect = (value: string) => {
+    if (!activeFilter) return;
+    onFilterChange(activeFilter, value);
+    handleModalClose();
+  };
+
+  const hasActiveFilters = selectedCity || selectedDistrict || selectedCategory || selectedBrand;
+
   const renderFilterButton = (type: 'city' | 'district' | 'category' | 'brand') => {
     const selected = getSelectedValue(type);
     const icon = getFilterIcon(type);
     const isDisabled = type === 'district' && !selectedCity;
 
     return (
-      <Animated.View>
-        <TouchableOpacity
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          selected ? styles.activeFilter : null,
+          isDisabled ? styles.disabledFilter : null,
+        ]}
+        onPress={() => {
+          if (isDisabled) return;
+          handleModalOpen(type);
+        }}
+        activeOpacity={0.7}
+        disabled={isDisabled}
+      >
+        <FontAwesome
+          name={icon}
+          size={16}
+          color={selected ? '#fff' : isDisabled ? '#999' : '#666'}
+        />
+        <Text
           style={[
-            styles.filterButton,
-            selected ? styles.activeFilter : null,
-            isDisabled ? styles.disabledFilter : null,
+            styles.filterText,
+            selected ? styles.activeFilterText : null,
+            isDisabled ? styles.disabledFilterText : null,
           ]}
-          onPress={() => {
-            if (isDisabled) return;
-            handleModalOpen(type);
-          }}
-          activeOpacity={0.7}
-          disabled={isDisabled}
+          numberOfLines={1}
         >
-          <FontAwesome
-            name={icon}
-            size={14}
-            color={selected ? '#fff' : isDisabled ? '#999' : '#666'}
-          />
-          <Text
-            style={[
-              styles.filterText,
-              selected ? styles.activeFilterText : null,
-              isDisabled ? styles.disabledFilterText : null,
-            ]}
-            numberOfLines={1}
-          >
-            {selected || (type === 'city' ? 'Şehir' : type === 'district' ? 'İlçe' : type === 'category' ? 'Kategori' : 'Marka')}
-          </Text>
-          <FontAwesome
-            name="chevron-down"
-            size={12}
-            color={selected ? '#fff' : isDisabled ? '#999' : '#666'}
-            style={styles.chevron}
-          />
-        </TouchableOpacity>
-      </Animated.View>
+          {selected || (type === 'city' ? 'Şehir' : type === 'district' ? 'İlçe' : type === 'category' ? 'Kategori' : 'Marka')}
+        </Text>
+        <FontAwesome
+          name="chevron-down"
+          size={12}
+          color={selected ? '#fff' : isDisabled ? '#999' : '#666'}
+          style={styles.chevron}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderFilterOption = ({ item }: { item: FilterOption }) => {
+    const isSelected = activeFilter ? getSelectedValue(activeFilter) === item.value : false;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.optionItem,
+          isSelected && styles.selectedOption,
+        ]}
+        onPress={() => handleOptionSelect(item.value)}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.optionText,
+          isSelected && styles.selectedOptionText,
+        ]}>
+          {item.label}
+        </Text>
+        {isSelected && (
+          <FontAwesome name="check" size={16} color="#007AFF" />
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -215,7 +241,7 @@ export default function FilterBar({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View>
+      <View style={styles.mainContainer}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -226,6 +252,16 @@ export default function FilterBar({
           {renderFilterButton('category')}
           {renderFilterButton('brand')}
         </ScrollView>
+
+        {hasActiveFilters && (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={onClearFilters}
+            activeOpacity={0.7}
+          >
+            <FontAwesome name="times" size={16} color="#FF3B30" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Modal
@@ -236,166 +272,101 @@ export default function FilterBar({
       >
         <Animated.View 
           style={[
-            styles.modalContainer,
+            styles.modalOverlay,
             { opacity: fadeAnimation }
           ]}
         >
-          <Animated.View
-            style={[
-              styles.modalContent,
-              {
-                transform: [{ translateY: modalTranslateY }],
-              },
-            ]}
+          <TouchableOpacity
+            style={styles.modalBackground}
+            activeOpacity={1}
+            onPress={handleModalClose}
           >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Select {activeFilter?.charAt(0).toUpperCase()}
-                {activeFilter?.slice(1)}
-              </Text>
-              <TouchableOpacity
-                onPress={handleModalClose}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <FontAwesome name="close" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
+            <Animated.View
+              style={[
+                styles.modalContent,
+                {
+                  transform: [{ translateY: modalTranslateY }],
+                },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={handleModalClose}
+                >
+                  <FontAwesome name="chevron-down" size={16} color="#666" />
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>
+                  {activeFilter ? getFilterTitle(activeFilter) : ''}
+                </Text>
+                <View style={styles.closeButton} />
+              </View>
 
-            <View style={styles.searchContainer}>
-              <FontAwesome name="search" size={16} color="#666" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCorrect={false}
-                clearButtonMode="while-editing"
-                returnKeyType="search"
-                autoCapitalize="none"
+              <View style={styles.searchContainer}>
+                <FontAwesome name="search" size={16} color="#666" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Ara..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  clearButtonMode="while-editing"
+                />
+              </View>
+
+              <FlatList
+                data={filteredOptions}
+                renderItem={renderFilterOption}
+                keyExtractor={(item) => item.value}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.optionsList}
               />
-            </View>
-
-            <FlatList
-              data={filteredOptions}
-              keyExtractor={(item) => item.value}
-              renderItem={({ item }) => {
-                const isSelected = item.value === getSelectedValue(activeFilter || 'city');
-                return (
-                  <TouchableOpacity
-                    style={[styles.optionItem, isSelected && styles.selectedOption]}
-                    onPress={() => {
-                      if (activeFilter) {
-                        onFilterChange(activeFilter, item.value);
-                        handleModalClose();
-                      }
-                    }}
-                  >
-                    <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
-                      {item.label}
-                    </Text>
-                    {isSelected && <FontAwesome name="check" size={16} color="#007AFF" />}
-                  </TouchableOpacity>
-                );
-              }}
-              style={styles.optionsList}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No results found</Text>
-                </View>
-              }
-            />
-          </Animated.View>
+            </Animated.View>
+          </TouchableOpacity>
         </Animated.View>
       </Modal>
     </SafeAreaView>
   );
 }
 
-function getCategoryIcon(value: string): string {
-  switch (value) {
-    case 'Servisler':
-      return 'wrench';
-    case 'Kaportacılar':
-      return 'car';
-    case 'Lastikçiler':
-      return 'circle-o';
-    case 'Parçacılar':
-      return 'cogs';
-    case 'Motorsikletciler':
-      return 'motorcycle';
-    case 'Egzozcular':
-      return 'filter';
-    case 'Boyacılar':
-      return 'paint-brush';
-    case 'Ekspertizler':
-      return 'search';
-    case 'Frenciler':
-      return 'stop-circle';
-    case 'Aksesuarcılar':
-      return 'star';
-    case 'Elektrikçiler':
-      return 'bolt';
-    case 'Turbocular':
-      return 'dashboard';
-    case 'Yazılımcılar':
-      return 'code';
-    case 'Cam Film ve Kaplamacılar':
-      return 'film';
-    case 'Kilitciler':
-      return 'lock';
-    case 'Yıkamacılar':
-      return 'tint';
-    case 'Tunningciler':
-      return 'rocket';
-    case 'Rot Balanscılar':
-      return 'balance-scale';
-    case 'Oto Kuaförler':
-      return 'magic';
-    case 'Oto Döşemeciler':
-      return 'couch';
-    case 'Camcılar':
-      return 'window-maximize';
-    case 'Jantcılar':
-      return 'circle';
-    default:
-      return 'tag';
-  }
-}
-
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
+  mainContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   container: {
-    padding: 12,
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
     gap: 8,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
+    backgroundColor: '#F5F5F5',
     marginRight: 8,
-    minWidth: 100,
   },
   activeFilter: {
     backgroundColor: '#007AFF',
   },
   disabledFilter: {
-    backgroundColor: '#F0F0F0',
-    opacity: 0.7,
+    opacity: 0.5,
   },
   filterText: {
+    fontSize: 14,
     color: '#666',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-    marginHorizontal: 6,
+    marginLeft: 6,
+    marginRight: 4,
   },
   activeFilterText: {
     color: '#fff',
@@ -406,164 +377,86 @@ const styles = StyleSheet.create({
   chevron: {
     marginLeft: 2,
   },
-  modalContainer: {
+  clearButton: {
+    padding: 8,
+    marginRight: 16,
+  },
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    paddingTop: 8,
+    maxHeight: SCREEN_WIDTH * 1.1,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
+  closeButton: {
+    padding: 8,
+    width: 32,
+    alignItems: 'center',
+  },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
+    flex: 1,
+    textAlign: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
-    backgroundColor: '#F8F8F8',
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
+    height: 36,
     fontSize: 16,
-    color: '#333',
-    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    color: '#1a1a1a',
   },
   optionsList: {
-    maxHeight: 400,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   optionItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F5F5F5',
   },
   selectedOption: {
-    backgroundColor: '#F8F8F8',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
   },
   optionText: {
     fontSize: 16,
-    color: '#333',
+    color: '#1a1a1a',
   },
   selectedOptionText: {
     color: '#007AFF',
     fontWeight: '500',
-  },
-  emptyContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  popularContainer: {
-    padding: 16,
-    backgroundColor: 'white',
-  },
-  popularTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 12,
-  },
-  popularGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  popularItem: {
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  popularItemSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  popularItemText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  popularItemTextSelected: {
-    color: '#fff',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E8E8E8',
-    marginVertical: 16,
-  },
-  allCategoriesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  popularSection: {
-    paddingTop: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-    backgroundColor: 'white',
-  },
-  popularSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  popularScrollContainer: {
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  popularCategoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  popularCategoryItemSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  popularCategoryIcon: {
-    marginRight: 6,
-  },
-  popularCategoryText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-  },
-  popularCategoryTextSelected: {
-    color: '#fff',
   },
 }); 

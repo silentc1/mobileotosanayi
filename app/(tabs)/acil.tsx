@@ -160,7 +160,23 @@ export default function AcilScreen() {
   const renderFilters = () => (
     <View style={styles.filtersContainer}>
       <View style={styles.filterItem}>
-        <Text style={styles.filterLabel}>Filtrele</Text>
+        <View style={styles.filterHeader}>
+          <Text style={styles.filterLabel}>Filtrele</Text>
+          {(selectedFilters.sehir || selectedFilters.ilce || selectedFilters.kategori) && (
+            <TouchableOpacity
+              style={styles.clearFiltersButton}
+              onPress={() => {
+                setSelectedFilters({
+                  sehir: '',
+                  ilce: '',
+                  kategori: '',
+                });
+              }}
+            >
+              <Text style={styles.clearFiltersText}>Filtreleri Temizle</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.filterButtons}>
           {renderPickerButton('Şehir', selectedFilters.sehir, 'sehir')}
           {renderPickerButton('İlçe', selectedFilters.ilce, 'ilce')}
@@ -390,5 +406,24 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 16,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 }); 

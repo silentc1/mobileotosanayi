@@ -157,21 +157,29 @@ export default function HomeScreen() {
       setIsLoading(true);
       setError(null);
       
-      let results: MongoBusiness[];
+      const results = await apiService.getAllBusinesses();
+      
+      // Apply filters
+      let filteredResults = results;
+      
+      if (selectedCity) {
+        filteredResults = filteredResults.filter(b => b.city === selectedCity);
+      }
+      
+      if (selectedDistrict) {
+        filteredResults = filteredResults.filter(b => b.ilce === selectedDistrict);
+      }
       
       if (selectedCategory) {
-        results = await apiService.getBusinessesByCategory(selectedCategory);
-      } else {
-        results = await apiService.getAllBusinesses();
+        filteredResults = filteredResults.filter(b => 
+          Array.isArray(b.category) && b.category.includes(selectedCategory)
+        );
       }
       
-      // Apply additional filters on the results if needed
-      let filteredResults = results;
-      if (selectedCity) {
-        filteredResults = filteredResults.filter(b => b.address.includes(selectedCity));
-      }
-      if (selectedDistrict) {
-        filteredResults = filteredResults.filter(b => b.address.includes(selectedDistrict));
+      if (selectedBrand) {
+        filteredResults = filteredResults.filter(b => 
+          Array.isArray(b.brands) && b.brands.includes(selectedBrand)
+        );
       }
       
       setBusinesses(filteredResults);
@@ -180,25 +188,26 @@ export default function HomeScreen() {
       console.error('Error fetching businesses:', err);
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
     }
-  }, [selectedCity, selectedDistrict, selectedCategory]);
+  }, [selectedCity, selectedDistrict, selectedCategory, selectedBrand]);
 
   useEffect(() => {
     fetchBusinesses();
   }, [fetchBusinesses]);
 
-  const handleFilterChange = useCallback((filterType: FilterType, value: string) => {
+  const handleFilterChange = useCallback((filterType: 'city' | 'district' | 'category' | 'brand', value: string) => {
     switch (filterType) {
       case 'city':
         setSelectedCity(value);
-        setSelectedDistrict('');
+        setSelectedDistrict(''); // Reset district when city changes
         setAvailableDistricts(getDistrictsForCity(value));
         break;
       case 'district':
         setSelectedDistrict(value);
         break;
       case 'category':
-        setSelectedCategory(prevCategory => prevCategory === value ? '' : value);
+        setSelectedCategory(value);
         break;
       case 'brand':
         setSelectedBrand(value);
@@ -206,16 +215,13 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const handleRemoveFilters = useCallback(() => {
+  const handleClearFilters = useCallback(() => {
     setSelectedCity('');
     setSelectedDistrict('');
     setSelectedCategory('');
     setSelectedBrand('');
     setAvailableDistricts(getDistrictsForCity(''));
-    fetchBusinesses();
-  }, [fetchBusinesses]);
-
-  const hasActiveFilters = selectedCity || selectedDistrict || selectedCategory || selectedBrand;
+  }, []);
 
   const handleBusinessPress = useCallback((business: MongoBusiness) => {
     console.log('Business pressed:', business.name);
@@ -224,7 +230,6 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchBusinesses();
-    setRefreshing(false);
   }, [fetchBusinesses]);
 
   const renderHeader = () => (
@@ -234,6 +239,25 @@ export default function HomeScreen() {
         selectedCategory={selectedCategory}
         onCategoryPress={(category) => handleFilterChange('category', category.value)}
       />
+      <FilterBar
+        cities={CITIES}
+        districts={availableDistricts}
+        categories={CATEGORIES}
+        brands={BRANDS}
+        selectedCity={selectedCity}
+        selectedDistrict={selectedDistrict}
+        selectedCategory={selectedCategory}
+        selectedBrand={selectedBrand}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+      />
+      {businesses.length > 0 && (
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsCount}>
+            {businesses.length} {businesses.length === 1 ? 'işletme' : 'işletme'} bulundu
+          </Text>
+        </View>
+      )}
     </>
   );
 
@@ -249,122 +273,122 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <Header />
-      <View>
-        <FilterBar
-          cities={CITIES}
-          districts={availableDistricts}
-          categories={CATEGORIES}
-          brands={BRANDS}
-          selectedCity={selectedCity}
-          selectedDistrict={selectedDistrict}
-          selectedCategory={selectedCategory}
-          selectedBrand={selectedBrand}
-          onFilterChange={handleFilterChange}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : (
+        <FlatList
+          data={businesses}
+          renderItem={({ item }) => (
+            <BusinessCard
+              business={mapBusinessToCardBusiness(item)}
+              onPress={() => handleBusinessPress(item)}
+            />
+          )}
+          keyExtractor={(item) => item._id.toString()}
+          contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <FontAwesome name="search" size={48} color="#999" />
+              <Text style={styles.emptyText}>
+                {selectedCity || selectedDistrict || selectedCategory || selectedBrand
+                  ? 'Bu filtrelere uygun işletme bulunamadı'
+                  : 'İşletme bulunamadı'}
+              </Text>
+              {(selectedCity || selectedDistrict || selectedCategory || selectedBrand) && (
+                <TouchableOpacity
+                  style={styles.clearFiltersButton}
+                  onPress={handleClearFilters}
+                >
+                  <Text style={styles.clearFiltersText}>Filtreleri Temizle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
-        {hasActiveFilters && (
-          <TouchableOpacity 
-            style={styles.removeFiltersButton} 
-            onPress={handleRemoveFilters}
-          >
-            <FontAwesome name="times-circle" size={16} color="#fff" />
-            <Text style={styles.removeFiltersText}>Filtreleri Temizle</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      <FlatList
-        data={businesses}
-        keyExtractor={(item) => item._id.toString()}
-        renderItem={({ item }) => (
-          <BusinessCard
-            business={mapBusinessToCardBusiness(item)}
-          />
-        )}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#007AFF"
-          />
-        }
-        ListEmptyComponent={
-          !isLoading ? (
-            <View style={styles.centerContainer}>
-              <Text style={styles.emptyText}>No businesses found</Text>
-            </View>
-          ) : null
-        }
-        ListFooterComponent={
-          isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-            </View>
-          ) : null
-        }
-      />
-    </View>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: '#fff',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  listContent: {
-    paddingVertical: 8,
+    padding: 16,
   },
   loadingContainer: {
-    padding: 16,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    fontSize: 16,
-    marginBottom: 16,
+  listContainer: {
+    flexGrow: 1,
   },
-  emptyText: {
-    color: '#666',
-    textAlign: 'center',
+  errorText: {
     fontSize: 16,
+    color: '#FF3B30',
+    textAlign: 'center',
+    marginBottom: 16,
   },
   retryButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 12,
   },
   retryText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  clearFiltersButton: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    color: '#007AFF',
     fontWeight: '500',
   },
-  removeFiltersButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF3B30',
-    paddingVertical: 8,
+  resultsHeader: {
     paddingHorizontal: 16,
-    borderRadius: 20,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    gap: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+    backgroundColor: '#F8F8F8',
   },
-  removeFiltersText: {
-    color: '#fff',
+  resultsCount: {
     fontSize: 14,
+    color: '#666',
     fontWeight: '500',
   },
 });
