@@ -5,15 +5,19 @@ import {
   Text,
   TouchableOpacity,
   Image,
-  Dimensions,
+  Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import BusinessCardDetails from './BusinessCardDetails';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
 
 const DEFAULT_IMAGE = 'https://via.placeholder.com/400x200?text=No+Image';
 
 export type Business = {
   _id: string;
+  id?: string;
   ownerId: string;
   name: string;
   category: string[];
@@ -57,6 +61,108 @@ export default function BusinessCard({
 }: BusinessCardProps) {
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [localIsFavorite, setLocalIsFavorite] = useState(isFavorite);
+  const { user } = useAuth();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (user) {
+        try {
+          const favorites = await apiService.getFavorites();
+          console.log('Checking favorites for business:', business._id);
+          console.log('Current favorites:', JSON.stringify(favorites, null, 2));
+          
+          // Check if favorites is an array and has items
+          if (!Array.isArray(favorites)) {
+            console.warn('Favorites is not an array:', favorites);
+            return;
+          }
+
+          // Check both _id and direct comparison for flexibility
+          const isFavorited = favorites.some(fav => {
+            if (typeof fav === 'string') {
+              return fav === business._id;
+            }
+            return fav._id === business._id;
+          });
+          
+          console.log('Is business favorited:', isFavorited);
+          setLocalIsFavorite(isFavorited);
+        } catch (error) {
+          console.error('Error checking favorite status:', error);
+        }
+      }
+    };
+    
+    checkFavoriteStatus();
+  }, [user, business._id]);
+
+  const handleFavoritePress = async () => {
+    if (!user) {
+      Alert.alert(
+        'Giriş Yapın',
+        'Favorilere eklemek için giriş yapmanız gerekiyor.',
+        [
+          {
+            text: 'Vazgeç',
+            style: 'cancel',
+          },
+          {
+            text: 'Giriş Yap',
+            onPress: () => router.push('/login'),
+          },
+        ]
+      );
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Debug logging for business object
+      console.log('Full business object:', JSON.stringify(business, null, 2));
+      console.log('Business ID type:', typeof business._id);
+      console.log('Business ID value:', business._id);
+      
+      // Check for valid business ID
+      const businessId = business._id?.toString() || business.id?.toString();
+      if (!businessId) {
+        console.error('Invalid business object:', business);
+        throw new Error('Business ID is missing');
+      }
+      
+      if (localIsFavorite) {
+        console.log('Removing from favorites...', { businessId });
+        await apiService.removeFavorite(businessId);
+      } else {
+        console.log('Adding to favorites...', { businessId });
+        await apiService.addFavorite(businessId);
+      }
+      
+      // Toggle local state
+      setLocalIsFavorite(!localIsFavorite);
+      
+      // Fetch updated favorites
+      const updatedFavorites = await apiService.getFavorites();
+      console.log('Updated favorites after operation:', JSON.stringify(updatedFavorites, null, 2));
+      
+      if (onFavoritePress) {
+        onFavoritePress(business);
+      }
+    } catch (error) {
+      console.error('Favori işlemi hatası:', error);
+      Alert.alert(
+        'Hata',
+        'Favori işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.'
+      );
+      // Revert local state if there was an error
+      setLocalIsFavorite(localIsFavorite);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     console.log('Full business data:', JSON.stringify(business, null, 2));
@@ -135,6 +241,15 @@ export default function BusinessCard({
     };
   };
 
+  // Add debug logging when business prop changes
+  React.useEffect(() => {
+    console.log('Business prop changed:', {
+      id: business._id,
+      name: business.name,
+      hasId: !!business._id,
+    });
+  }, [business]);
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -153,12 +268,13 @@ export default function BusinessCard({
 
         <TouchableOpacity
           style={styles.favoriteButton}
-          onPress={() => onFavoritePress?.(business)}
+          onPress={handleFavoritePress}
+          disabled={isLoading}
         >
           <FontAwesome
-            name={isFavorite ? 'heart' : 'heart-o'}
+            name={localIsFavorite ? 'heart' : 'heart-o'}
             size={24}
-            color={isFavorite ? '#FF0000' : '#000'}
+            color={localIsFavorite ? '#FF0000' : '#000'}
           />
         </TouchableOpacity>
 
@@ -218,8 +334,8 @@ export default function BusinessCard({
         business={mapBusinessToDetailsType(business)}
         visible={isDetailsVisible}
         onClose={handleCloseDetails}
-        onFavoritePress={onFavoritePress ? () => onFavoritePress(business) : undefined}
-        isFavorite={isFavorite}
+        onFavoritePress={handleFavoritePress}
+        isFavorite={localIsFavorite}
       />
     </View>
   );

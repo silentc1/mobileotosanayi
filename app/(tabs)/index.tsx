@@ -224,7 +224,6 @@ export default function HomeScreen() {
   }, []);
 
   const handleBusinessPress = useCallback((business: MongoBusiness) => {
-    console.log('Business pressed:', business.name);
   }, []);
 
   const onRefresh = useCallback(async () => {

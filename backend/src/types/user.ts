@@ -4,11 +4,10 @@ export interface User {
   password: string;
   fullName: string;
   phone?: string;
-  avatar?: string;
+  role: 'admin' | 'customer' | 'business';
+  favorites: string[];
+  isEmailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
-  favorites: string[];
-  role: 'customer' | 'business_owner' | 'admin';
-  isEmailVerified: boolean;
   lastLogin?: Date;
 } 

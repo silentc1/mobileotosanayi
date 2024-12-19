@@ -227,6 +227,53 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  // Favorites endpoints
+  public async getFavorites(): Promise<Business[]> {
+    const response = await this.fetchWithAuth('/auth/favorites');
+    console.log('Raw favorites response:', JSON.stringify(response, null, 2));
+    if (!response || !response.favorites) {
+      console.warn('Invalid favorites response:', response);
+      return [];
+    }
+    return Array.isArray(response.favorites) ? response.favorites : [];
+  }
+
+  public async addFavorite(businessId: string): Promise<void> {
+    if (!businessId) {
+      throw new Error('Business ID is required');
+    }
+    console.log('Adding favorite for business ID:', businessId);
+    const response = await this.fetchWithAuth('/auth/favorites/add', {
+      method: 'POST',
+      body: JSON.stringify({ businessId }),
+    });
+    console.log('Add favorite response:', JSON.stringify(response, null, 2));
+    
+    // Verify the response
+    if (!response || !response.message) {
+      console.warn('Unexpected add favorite response:', response);
+    }
+    return response;
+  }
+
+  public async removeFavorite(businessId: string): Promise<void> {
+    if (!businessId) {
+      throw new Error('Business ID is required');
+    }
+    console.log('Removing favorite for business ID:', businessId);
+    const response = await this.fetchWithAuth('/auth/favorites/remove', {
+      method: 'POST',
+      body: JSON.stringify({ businessId }),
+    });
+    console.log('Remove favorite response:', JSON.stringify(response, null, 2));
+    
+    // Verify the response
+    if (!response || !response.message) {
+      console.warn('Unexpected remove favorite response:', response);
+    }
+    return response;
+  }
 }
 
 export const apiService = ApiService.getInstance(); 

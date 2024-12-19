@@ -17,7 +17,6 @@ app.use(express.json());
 connectToDatabase()
   .then((db) => {
     app.locals.db = db;
-    console.log('Connected to MongoDB');
   })
   .catch((error) => {
     console.error('Failed to connect to MongoDB:', error);

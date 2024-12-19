@@ -8,9 +8,7 @@ export class BusinessRepository {
 
   static async updateFromGooglePlaces(db: Db, businessId: string | ObjectId, placeId: string): Promise<Business> {
     try {
-      console.log('=== Starting Business Update ===');
-      console.log('Business ID:', businessId);
-      console.log('Place ID:', placeId);
+
 
       const googlePlacesService = GooglePlacesService.getInstance();
       const placeDetails = await googlePlacesService.getPlaceDetails(placeId);
@@ -24,17 +22,7 @@ export class BusinessRepository {
         userId: 'google', // Use 'google' as userId for Google reviews
       }));
 
-      console.log('=== MongoDB Update Operation ===');
-      console.log('Updating document with ID:', businessId);
-      console.log('Update data:', {
-        name: placeDetails.name,
-        rating: placeDetails.rating,
-        reviewCount: placeDetails.reviewCount,
-        reviewsCount: placeDetails.reviews.length,
-        hasAddress: !!placeDetails.address,
-        hasPhone: !!placeDetails.phone,
-        hasWebsite: !!placeDetails.website,
-      });
+      
 
       const result = await db.collection<Business>(COLLECTIONS.BUSINESSES).findOneAndUpdate(
         { _id: typeof businessId === 'string' ? new ObjectId(businessId) : businessId },

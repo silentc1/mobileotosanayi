@@ -258,67 +258,107 @@ router.post('/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/favorites/add', authenticateToken, async (req, res) => {
-  try {
-    const { businessId } = req.body;
-    const userId = (req as any).user._id;
-
-    const db = req.app.locals.db;
-    const usersCollection = db.collection('users');
-
-    await usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      { $addToSet: { favorites: new ObjectId(businessId) } }
-    );
-
-    res.status(200).json({ message: 'İşletme favorilere eklendi' });
-  } catch (error) {
-    console.error('Favori ekleme hatası:', error);
-    res.status(500).json({ error: 'İşletme favorilere eklenirken bir hata oluştu' });
-  }
-});
-
-router.post('/favorites/remove', authenticateToken, async (req, res) => {
-  try {
-    const { businessId } = req.body;
-    const userId = (req as any).user._id;
-
-    const db = req.app.locals.db;
-    const usersCollection = db.collection('users');
-
-    await usersCollection.updateOne(
-      { _id: new ObjectId(userId) },
-      { $pull: { favorites: new ObjectId(businessId) } }
-    );
-
-    res.status(200).json({ message: 'İşletme favorilerden kaldırıldı' });
-  } catch (error) {
-    console.error('Favori kaldırma hatası:', error);
-    res.status(500).json({ error: 'İşletme favorilerden kaldırılırken bir hata oluştu' });
-  }
-});
-
+// Get user's favorites
 router.get('/favorites', authenticateToken, async (req, res) => {
   try {
-    const userId = (req as any).user._id;
-
-    const db = req.app.locals.db;
-    const usersCollection = db.collection('users');
-    const businessesCollection = db.collection('businesses');
-
-    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-    if (!user || !user.favorites) {
-      return res.status(200).json({ favorites: [] });
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const favorites = await businessesCollection
-      .find({ _id: { $in: user.favorites } })
+    const db = req.app.locals.db;
+    const user = await UserRepository.findById(db, userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get the full business details for each favorite
+    const favorites = user.favorites || [];
+    const businessesCollection = db.collection('businesses');
+    const businessIds = favorites.map(id => new ObjectId(id));
+    
+    const businessDetails = await businessesCollection
+      .find({ _id: { $in: businessIds } })
       .toArray();
 
-    res.status(200).json({ favorites });
+    res.json({ favorites: businessDetails });
   } catch (error) {
-    console.error('Favorileri getirme hatası:', error);
-    res.status(500).json({ error: 'Favoriler getirilirken bir hata oluştu' });
+    console.error('Get favorites error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add to favorites
+router.post('/favorites/add', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { businessId } = req.body;
+    if (!businessId) {
+      return res.status(400).json({ error: 'Business ID is required' });
+    }
+
+    const db = req.app.locals.db;
+    const user = await UserRepository.findById(db, userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if business exists
+    const businessObjectId = new ObjectId(businessId);
+    const business = await db.collection('businesses').findOne({ _id: businessObjectId });
+    if (!business) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
+    // Add to favorites if not already added
+    const favorites = user.favorites || [];
+    if (!favorites.includes(businessId)) {
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(userId) },
+        { $addToSet: { favorites: businessId } }
+      );
+    }
+
+    res.json({ message: 'İşletme favorilere eklendi' });
+  } catch (error) {
+    console.error('Add to favorites error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove from favorites
+router.post('/favorites/remove', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { businessId } = req.body;
+    if (!businessId) {
+      return res.status(400).json({ error: 'Business ID is required' });
+    }
+
+    const db = req.app.locals.db;
+    const user = await UserRepository.findById(db, userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Remove from favorites
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $pull: { favorites: businessId } }
+    );
+
+    res.json({ message: 'İşletme favorilerden kaldırıldı' });
+  } catch (error) {
+    console.error('Remove from favorites error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
