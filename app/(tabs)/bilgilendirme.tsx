@@ -10,6 +10,7 @@ import {
   Alert,
   ScrollView,
   Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
@@ -191,73 +192,89 @@ export default function BilgilendirmeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ustaya Sor</Text>
-        <Text style={styles.headerSubtitle}>Aracınızla ilgili tüm sorularınızı yanıtlayalım</Text>
-      </View>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Ustaya Sor</Text>
+          <Text style={styles.headerSubtitle}>Aracınızla ilgili tüm sorularınızı yanıtlayalım</Text>
+        </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {messages.length === 0 ? (
-          <View style={styles.quickQuestionsContainer}>
-            <View style={styles.welcomeContainer}>
-              <FontAwesome name="comments" size={48} color="#007AFF" />
-              <Text style={styles.welcomeTitle}>Ustaya Sorun</Text>
-              <Text style={styles.welcomeText}>
-                Aracınızla ilgili her türlü sorunuzu deneyimli ustamıza sorabilirsiniz.
-              </Text>
-            </View>
-            <Text style={styles.quickQuestionsTitle}>Sık Sorulan Sorular:</Text>
-            {QUICK_QUESTIONS.map((question, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.quickQuestionButton}
-                onPress={() => handleQuickQuestion(question)}
-              >
-                <FontAwesome name="question-circle" size={16} color="#007AFF" />
-                <Text style={styles.quickQuestionText}>{question}</Text>
-                <FontAwesome name="chevron-right" size={12} color="#666" />
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))
-        )}
-        {isLoading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#007AFF" />
-            <Text style={styles.loadingText}>Yanıt hazırlanıyor...</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Sorunuzu yazın..."
-          placeholderTextColor="#999"
-          multiline
-          maxLength={500}
-          onSubmitEditing={handleSend}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!input.trim() || isLoading) && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!input.trim() || isLoading}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.messagesContainer}
+          contentContainerStyle={[
+            styles.messagesContent,
+            { flexGrow: 1, justifyContent: messages.length === 0 ? 'flex-start' : 'flex-end' }
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
-          <FontAwesome name="send" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+          {messages.length === 0 ? (
+            <View style={styles.quickQuestionsContainer}>
+              <View style={styles.welcomeContainer}>
+                <FontAwesome name="comments" size={48} color="#007AFF" />
+                <Text style={styles.welcomeTitle}>Ustaya Sorun</Text>
+                <Text style={styles.welcomeText}>
+                  Aracınızla ilgili her türlü sorunuzu deneyimli ustamıza sorabilirsiniz.
+                </Text>
+              </View>
+              <Text style={styles.quickQuestionsTitle}>Sık Sorulan Sorular:</Text>
+              {QUICK_QUESTIONS.map((question, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.quickQuestionButton}
+                  onPress={() => handleQuickQuestion(question)}
+                >
+                  <FontAwesome name="question-circle" size={16} color="#007AFF" />
+                  <Text style={styles.quickQuestionText}>{question}</Text>
+                  <FontAwesome name="chevron-right" size={12} color="#666" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} />
+            ))
+          )}
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <Text style={styles.loadingText}>Yanıt hazırlanıyor...</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            value={input}
+            onChangeText={(text) => {
+              setInput(text);
+              // Klavye açıldığında otomatik scroll
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
+            placeholder="Sorunuzu yazın..."
+            placeholderTextColor="#999"
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!input.trim() || isLoading) && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!input.trim() || isLoading}
+          >
+            <FontAwesome name="send" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -295,7 +312,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 16,
-    flexGrow: 1,
+    paddingBottom: 4,
   },
   welcomeContainer: {
     alignItems: 'center',
@@ -411,10 +428,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 12,
+    padding: 8,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 8,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E8E8E8',
+    marginBottom: 0,
   },
   input: {
     flex: 1,
