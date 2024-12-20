@@ -1,166 +1,262 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
-  Animated,
-  LayoutAnimation,
+  TextInput,
+  ActivityIndicator,
   Platform,
-  UIManager,
+  Alert,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GEMINI_API_KEY } from '@env';
 
-// Enable LayoutAnimation for Android
-if (Platform.OS === 'android') {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+const { width } = Dimensions.get('window');
+const cardWidth = width - 32;
+
+if (!GEMINI_API_KEY) {
+  console.error('GEMINI_API_KEY is not defined in environment variables');
 }
 
-type Article = {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  color: string;
+// Initialize Gemini API with optimized settings
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+// Optimized generation config for faster responses
+const generationConfig = {
+  temperature: 0.7,
+  topP: 0.8,
+  topK: 20,
+  maxOutputTokens: 4096,
 };
 
-type FAQ = {
+// Initialize model with caching
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-pro",
+  generationConfig,
+});
+
+// Chat message type
+type ChatMessage = {
   id: string;
-  question: string;
-  answer: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
 };
 
-const ARTICLES: Article[] = [
-  {
-    id: '1',
-    title: 'Araç Bakımı',
-    description: 'Düzenli araç bakımı nasıl yapılır? Nelere dikkat edilmeli?',
-    icon: 'wrench',
-    color: '#007AFF',
-  },
-  {
-    id: '2',
-    title: 'Lastik Bakımı',
-    description: 'Lastik basıncı ve diş derinliği kontrolü nasıl yapılır?',
-    icon: 'car',
-    color: '#FF9500',
-  },
-  {
-    id: '3',
-    title: 'Akü Bakımı',
-    description: 'Akü ömrünü uzatmak için ipuçları ve bakım önerileri',
-    icon: 'battery-full',
-    color: '#34C759',
-  },
-  {
-    id: '4',
-    title: 'Kış Bakımı',
-    description: 'Kış mevsiminde araç bakımı için önemli noktalar',
-    icon: 'snowflake-o',
-    color: '#5856D6',
-  },
-];
-
-const FAQS: FAQ[] = [
-  {
-    id: '1',
-    question: 'Aracımın yağ değişimi ne sıklıkla yapılmalı?',
-    answer: 'Genel olarak her 10.000 km\'de bir veya yılda bir kez yağ değişimi önerilir. Ancak bu süre araç modeli ve kullanım koşullarına göre değişebilir.',
-  },
-  {
-    id: '2',
-    question: 'Lastik basıncı ne sıklıkla kontrol edilmeli?',
-    answer: 'Lastik basıncı ayda bir kez veya uzun yolculuk öncesinde kontrol edilmelidir. Doğru lastik basıncı yakıt tüketimini ve yol tutuşunu etkiler.',
-  },
-  {
-    id: '3',
-    question: 'Akü ne kadar sürede değiştirilmeli?',
-    answer: 'Akü ortalama 3-5 yıl ömre sahiptir. Ancak kullanım koşulları ve iklim şartlarına göre bu süre değişebilir.',
-  },
-  {
-    id: '4',
-    question: 'Fren bakımı ne zaman yapılmalı?',
-    answer: 'Fren balataları her 20.000-25.000 km\'de kontrol edilmelidir. Fren diski ve balatalarının durumuna göre değişim yapılmalıdır.',
-  },
+// Common questions for quick access
+const QUICK_QUESTIONS = [
+  'Motor yağı değişimi ne zaman yapılmalı?',
+  'Lastik basıncı nasıl kontrol edilir?',
+  'Akü bakımı nasıl yapılır?',
+  'Fren sistemi kontrolleri nelerdir?',
+  'Araç kliması nasıl verimli kullanılır?',
+  'Yakıt tasarrufu için öneriler nelerdir?',
 ];
 
 export default function BilgilendirmeScreen() {
-  const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const chatSessionRef = useRef<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const toggleFaq = (id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedFaq(expandedFaq === id ? null : id);
-  };
+  // Initialize chat session on mount
+  useEffect(() => {
+    try {
+      chatSessionRef.current = model.startChat({
+        history: [],
+        generationConfig,
+      });
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Bir hata oluştu';
+      console.error('Chat başlatılırken hata:', errorMessage);
+      setError(errorMessage);
+    }
+  }, []);
 
-  const renderArticle = (article: Article) => (
-    <TouchableOpacity
-      key={article.id}
-      style={styles.articleCard}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.articleIcon, { backgroundColor: article.color }]}>
-        <FontAwesome name={article.icon} size={24} color="white" />
+  // Optimized message handling
+  const addMessage = useCallback((role: 'user' | 'assistant', content: string) => {
+    const newMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role,
+      content,
+      timestamp: Date.now(),
+    };
+    setMessages(prev => [...prev, newMessage]);
+  }, []);
+
+  // Scroll to bottom when new message arrives
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
+
+  const handleSend = useCallback(async () => {
+    if (!input.trim() || isLoading) return;
+
+    if (!GEMINI_API_KEY) {
+      Alert.alert('Hata', 'API anahtarı bulunamadı. Lütfen daha sonra tekrar deneyin.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      addMessage('user', input);
+      setInput('');
+
+      const prompt = `Sen bir deneyimli araç ustasısın. Cebimdeki Usta uygulaması için kullanıcının "${input}" sorusuna kısa ve öz bilgiler ver. Türkçe yanıtla. En önemli 3-4 maddeyi belirt.`;
+      
+      const result = await chatSessionRef.current.sendMessage(prompt);
+      const response = await result.response;
+      
+      addMessage('assistant', response.text());
+      setError(null);
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      setError('Yanıt alınamadı. Lütfen tekrar deneyin.');
+      Alert.alert('Hata', 'Yanıt alınamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [input, isLoading, addMessage]);
+
+  const handleQuickQuestion = useCallback((question: string) => {
+    setInput(question);
+    handleSend();
+  }, [handleSend]);
+
+  const MessageBubble = useCallback(({ message }: { message: ChatMessage }) => (
+    <View style={[
+      styles.messageBubble,
+      message.role === 'user' ? styles.userBubble : styles.assistantBubble
+    ]}>
+      <View style={[
+        styles.avatarContainer,
+        { backgroundColor: message.role === 'user' ? '#007AFF' : '#34C759' }
+      ]}>
+        <FontAwesome
+          name={message.role === 'user' ? 'user' : 'wrench'}
+          size={12}
+          color="white"
+        />
       </View>
-      <View style={styles.articleContent}>
-        <Text style={styles.articleTitle}>{article.title}</Text>
-        <Text style={styles.articleDescription}>{article.description}</Text>
-        <View style={styles.readMore}>
-          <Text style={[styles.readMoreText, { color: article.color }]}>
-            Devamını Oku
-          </Text>
-          <FontAwesome name="chevron-right" size={12} color={article.color} />
-        </View>
+      <View style={styles.messageContent}>
+        <Text style={[
+          styles.messageText,
+          message.role === 'user' ? styles.userMessageText : styles.assistantMessageText
+        ]}>
+          {message.content}
+        </Text>
+        <Text style={styles.timestampText}>
+          {new Date(message.timestamp).toLocaleTimeString('tr-TR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </Text>
       </View>
-    </TouchableOpacity>
-  );
+    </View>
+  ), []);
 
-  const renderFaq = (faq: FAQ) => {
-    const isExpanded = expandedFaq === faq.id;
+  if (error) {
     return (
-      <TouchableOpacity
-        key={faq.id}
-        style={[styles.faqItem, isExpanded && styles.faqItemExpanded]}
-        onPress={() => toggleFaq(faq.id)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.faqHeader}>
-          <Text style={styles.faqQuestion}>{faq.question}</Text>
-          <FontAwesome
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color="#666"
-          />
-        </View>
-        {isExpanded && <Text style={styles.faqAnswer}>{faq.answer}</Text>}
-      </TouchableOpacity>
+      <View style={styles.errorContainer}>
+        <FontAwesome name="exclamation-circle" size={48} color="#ff3b30" />
+        <Text style={styles.errorTitle}>Bir Hata Oluştu</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton} 
+          onPress={() => {
+            setError(null);
+            chatSessionRef.current = model.startChat({
+              history: [],
+              generationConfig,
+            });
+          }}
+        >
+          <FontAwesome name="refresh" size={16} color="#FFFFFF" style={styles.retryIcon} />
+          <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+        </TouchableOpacity>
+      </View>
     );
-  };
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Bilgilendirme</Text>
-        <Text style={styles.headerSubtitle}>
-          Faydalı bilgiler ve sık sorulan sorular
-        </Text>
+        <Text style={styles.headerTitle}>Ustaya Sor</Text>
+        <Text style={styles.headerSubtitle}>Aracınızla ilgili tüm sorularınızı yanıtlayalım</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        ref={scrollViewRef}
+        style={styles.messagesContainer}
+        contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Faydalı Bilgiler</Text>
-        <View style={styles.articlesGrid}>
-          {ARTICLES.map(renderArticle)}
-        </View>
-
-        <Text style={styles.sectionTitle}>Sık Sorulan Sorular</Text>
-        <View style={styles.faqList}>{FAQS.map(renderFaq)}</View>
+        {messages.length === 0 ? (
+          <View style={styles.quickQuestionsContainer}>
+            <View style={styles.welcomeContainer}>
+              <FontAwesome name="comments" size={48} color="#007AFF" />
+              <Text style={styles.welcomeTitle}>Ustaya Sorun</Text>
+              <Text style={styles.welcomeText}>
+                Aracınızla ilgili her türlü sorunuzu deneyimli ustamıza sorabilirsiniz.
+              </Text>
+            </View>
+            <Text style={styles.quickQuestionsTitle}>Sık Sorulan Sorular:</Text>
+            {QUICK_QUESTIONS.map((question, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.quickQuestionButton}
+                onPress={() => handleQuickQuestion(question)}
+              >
+                <FontAwesome name="question-circle" size={16} color="#007AFF" />
+                <Text style={styles.quickQuestionText}>{question}</Text>
+                <FontAwesome name="chevron-right" size={12} color="#666" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          messages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} />
+          ))
+        )}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#007AFF" />
+            <Text style={styles.loadingText}>Yanıt hazırlanıyor...</Text>
+          </View>
+        )}
       </ScrollView>
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Sorunuzu yazın..."
+          placeholderTextColor="#999"
+          multiline
+          maxLength={500}
+          onSubmitEditing={handleSend}
+        />
+        <TouchableOpacity
+          style={[styles.sendButton, (!input.trim() || isLoading) && styles.sendButtonDisabled]}
+          onPress={handleSend}
+          disabled={!input.trim() || isLoading}
+        >
+          <FontAwesome name="send" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -168,120 +264,214 @@ export default function BilgilendirmeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: '#F8F9FA',
   },
   header: {
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    backgroundColor: '#007AFF',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: '#FFFFFF',
+    textAlign: 'center',
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
   },
-  content: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 16,
-    marginTop: 24,
-  },
-  articlesGrid: {
-    gap: 16,
-  },
-  articleCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  articleIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  articleContent: {
+  messagesContainer: {
     flex: 1,
   },
-  articleTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
+  messagesContent: {
+    padding: 16,
+    flexGrow: 1,
   },
-  articleDescription: {
-    fontSize: 14,
-    color: '#666',
+  welcomeContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 16,
     marginBottom: 8,
   },
-  readMore: {
+  welcomeText: {
+    fontSize: 15,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  quickQuestionsContainer: {
+    flex: 1,
+  },
+  quickQuestionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  quickQuestionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  readMoreText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  faqList: {
-    gap: 12,
-  },
-  faqItem: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  quickQuestionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333333',
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  messageBubble: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    maxWidth: '85%',
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+  },
+  assistantBubble: {
+    alignSelf: 'flex-start',
+  },
+  avatarContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  messageContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  faqItemExpanded: {
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 4,
   },
-  faqHeader: {
+  userMessageText: {
+    color: '#1A1A1A',
+  },
+  assistantMessageText: {
+    color: '#333333',
+  },
+  timestampText: {
+    fontSize: 11,
+    color: '#999999',
+    alignSelf: 'flex-end',
+  },
+  loadingContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666666',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+  },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 100,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    fontSize: 16,
+    color: '#333333',
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  faqQuestion: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-    flex: 1,
-    marginRight: 16,
+  sendButtonDisabled: {
+    backgroundColor: '#B0B0B0',
   },
-  faqAnswer: {
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 12,
-    lineHeight: 20,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryIcon: {
+    marginRight: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 
