@@ -8,7 +8,7 @@ export default function PromoBanner() {
       <View style={styles.content}>
         <FontAwesome name="tag" size={12} color="#fff" style={styles.icon} />
         <Text style={styles.text}>
-          Kayıt olan herkese tüm servislerde %10 indirim kuponu
+          OTOSANAYİCİM
         </Text>
       </View>
     </View>

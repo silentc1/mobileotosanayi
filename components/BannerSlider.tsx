@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   slide: {
     width: screenWidth,
-    height: 200,
+    height: 120,
   },
   image: {
     width: '100%',

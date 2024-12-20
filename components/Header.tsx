@@ -116,7 +116,7 @@ export default function Header() {
 
   return (
     <SafeAreaView edges={[]} style={styles.safeArea}>
-      <PromoBanner />
+ 
       <View style={styles.container}>
         <View style={styles.searchContainer}>
           <FontAwesome name="search" size={16} color="#666" style={styles.searchIcon} />

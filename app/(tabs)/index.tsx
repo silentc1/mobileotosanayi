@@ -1,5 +1,18 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, TouchableOpacity, Modal, ScrollView, Platform } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  RefreshControl,
+  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  Platform,
+  Dimensions,
+  StatusBar,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import BusinessCard from '../../components/BusinessCard';
@@ -323,16 +336,39 @@ export default function HomeScreen() {
 
   const renderHeader = () => (
     <View style={styles.headerSection}>
-      <BannerSlider />
-      <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeTitle}>Hoş Geldiniz</Text>
-        <Text style={styles.welcomeSubtitle}>Size en yakın ve en iyi hizmetleri keşfedin</Text>
+      <View style={styles.welcomeSection}>
+        <Text style={styles.welcomeTitle}>Hoş Geldiniz 👋</Text>
+        <Text style={styles.welcomeSubtitle}>
+          Size en yakın ve en iyi hizmetleri keşfedin
+        </Text>
       </View>
-      <PopularCategories 
-        selectedCategory={selectedCategory}
-        onCategoryPress={(category) => handleFilterChange('category', category.value)}
-      />
-      <View style={styles.filterAndSortContainer}>
+
+      <BannerSlider />
+
+      <View style={styles.categoriesSection}>
+        <PopularCategories 
+          selectedCategory={selectedCategory}
+          onCategoryPress={(category) => handleFilterChange('category', category.value)}
+        />
+      </View>
+
+      <View style={styles.filterSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Filtrele ve Keşfet</Text>
+          <TouchableOpacity 
+            style={styles.sortButton}
+            onPress={() => setShowSortPicker(true)}
+          >
+            <FontAwesome name="sort" size={16} color="#007AFF" />
+            <Text style={styles.sortButtonText}>
+              {sortOption === 'rating_desc' ? 'En Yüksek Puan' :
+               sortOption === 'rating_asc' ? 'En Düşük Puan' :
+               sortOption === 'reviews_desc' ? 'En Çok Değerlendirme' :
+               sortOption === 'reviews_asc' ? 'En Az Değerlendirme' :
+               'Sıralama'}
+            </Text>
+          </TouchableOpacity>
+        </View>
         <FilterBar
           cities={CITIES}
           districts={availableDistricts}
@@ -345,27 +381,17 @@ export default function HomeScreen() {
           onFilterChange={handleFilterChange}
           onClearFilters={handleClearFilters}
         />
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={() => setShowSortPicker(true)}
-        >
-          <FontAwesome name="sort" size={18} color="#007AFF" />
-          <Text style={styles.sortButtonText}>
-            {sortOption === 'rating_desc' ? 'En Yüksek Puan' :
-             sortOption === 'rating_asc' ? 'En Düşük Puan' :
-             sortOption === 'reviews_desc' ? 'En Çok Değerlendirme' :
-             sortOption === 'reviews_asc' ? 'En Az Değerlendirme' :
-             'Sıralama'}
-          </Text>
-        </TouchableOpacity>
       </View>
+
       {businesses.length > 0 && (
-        <View style={styles.resultsHeader}>
+        <View style={styles.resultsSection}>
           <View style={styles.resultsContent}>
-            <FontAwesome name="search" size={16} color="#007AFF" style={styles.resultsIcon} />
-            <Text style={styles.resultsCount}>
-              {businesses.length} {businesses.length === 1 ? 'işletme' : 'işletme'} bulundu
-            </Text>
+            <View style={styles.resultsInfo}>
+              <FontAwesome name="search" size={16} color="#007AFF" />
+              <Text style={styles.resultsCount}>
+                {businesses.length} {businesses.length === 1 ? 'işletme' : 'işletme'} bulundu
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -388,6 +414,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
       <Header />
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -420,7 +447,7 @@ export default function HomeScreen() {
                   style={styles.clearFiltersButton}
                   onPress={handleClearFilters}
                 >
-                  <FontAwesome name="times-circle" size={16} color="#007AFF" style={styles.clearFiltersIcon} />
+                  <FontAwesome name="times-circle" size={16} color="#007AFF" />
                   <Text style={styles.clearFiltersText}>Filtreleri Temizle</Text>
                 </TouchableOpacity>
               )}
@@ -450,7 +477,6 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     backgroundColor: '#FFFFFF',
-    paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     shadowColor: '#000',
@@ -458,20 +484,103 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
+    marginBottom: 16,
   },
-  welcomeContainer: {
-    padding: 16,
-    marginTop: 8,
+  welcomeSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   welcomeTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 4,
   },
   welcomeSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666666',
+    lineHeight: 22,
+  },
+  categoriesSection: {
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  filterSection: {
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  sortButtonText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  resultsSection: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  resultsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  resultsInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resultsCount: {
+    fontSize: 14,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  mapViewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  mapViewText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -488,46 +597,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 16,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#FFFFFF',
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryIcon: {
-    marginRight: 8,
-  },
-  retryText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 32,
     marginTop: 32,
   },
@@ -551,52 +624,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    marginTop: 8,
-  },
-  clearFiltersIcon: {
-    marginRight: 8,
+    gap: 8,
   },
   clearFiltersText: {
     fontSize: 14,
     color: '#007AFF',
     fontWeight: '600',
-  },
-  filterAndSortContainer: {
-    padding: 16,
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F7FF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  sortButtonText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  resultsHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-  },
-  resultsContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  resultsIcon: {
-    marginRight: 8,
-  },
-  resultsCount: {
-    fontSize: 14,
-    color: '#1A1A1A',
-    fontWeight: '500',
   },
   modalBackground: {
     flex: 1,

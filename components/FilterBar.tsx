@@ -7,7 +7,6 @@ import {
   Modal,
   FlatList,
   SafeAreaView,
-  ScrollView,
   TextInput,
   Animated,
   Keyboard,
@@ -34,7 +33,7 @@ type FilterBarProps = {
   onClearFilters: () => void;
 };
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function FilterBar({
   cities,
@@ -52,22 +51,17 @@ export default function FilterBar({
   const [activeFilter, setActiveFilter] = useState<'city' | 'district' | 'category' | 'brand' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [modalAnimation] = useState(new Animated.Value(0));
-  const [fadeAnimation] = useState(new Animated.Value(0));
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-      }
+      (e) => setKeyboardHeight(e.endCoordinates.height)
     );
 
     const keyboardWillHide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-      }
+      () => setKeyboardHeight(0)
     );
 
     return () => {
@@ -78,16 +72,11 @@ export default function FilterBar({
 
   const getFilterOptions = () => {
     switch (activeFilter) {
-      case 'city':
-        return cities;
-      case 'district':
-        return districts;
-      case 'category':
-        return categories;
-      case 'brand':
-        return brands;
-      default:
-        return [];
+      case 'city': return cities;
+      case 'district': return districts;
+      case 'category': return categories;
+      case 'brand': return brands;
+      default: return [];
     }
   };
 
@@ -119,62 +108,40 @@ export default function FilterBar({
 
   const getSelectedValue = (type: 'city' | 'district' | 'category' | 'brand') => {
     switch (type) {
-      case 'city':
-        return selectedCity;
-      case 'district':
-        return selectedDistrict;
-      case 'category':
-        return selectedCategory;
-      case 'brand':
-        return selectedBrand;
-      default:
-        return '';
+      case 'city': return selectedCity;
+      case 'district': return selectedDistrict;
+      case 'category': return selectedCategory;
+      case 'brand': return selectedBrand;
+      default: return '';
     }
   };
 
   const getFilterTitle = (type: 'city' | 'district' | 'category' | 'brand') => {
     switch (type) {
-      case 'city':
-        return 'Şehir Seçin';
-      case 'district':
-        return selectedCity ? `${selectedCity} İlçeleri` : 'İlçe Seçin';
-      case 'category':
-        return 'Kategori Seçin';
-      case 'brand':
-        return 'Marka Seçin';
-      default:
-        return '';
+      case 'city': return 'Şehir Seçin';
+      case 'district': return selectedCity ? `${selectedCity} İlçeleri` : 'İlçe Seçin';
+      case 'category': return 'Kategori Seçin';
+      case 'brand': return 'Marka Seçin';
+      default: return '';
     }
   };
 
   const getFilterIcon = (type: 'city' | 'district' | 'category' | 'brand') => {
     switch (type) {
-      case 'city':
-        return 'building';
-      case 'district':
-        return 'map-marker';
-      case 'category':
-        return 'tags';
-      case 'brand':
-        return 'car';
-      default:
-        return 'tag';
+      case 'city': return 'building';
+      case 'district': return 'map-marker';
+      case 'category': return 'tags';
+      case 'brand': return 'car';
+      default: return 'tag';
     }
   };
 
   const animateModal = (show: boolean) => {
-    Animated.parallel([
-      Animated.timing(modalAnimation, {
-        toValue: show ? 1 : 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnimation, {
-        toValue: show ? 1 : 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    Animated.timing(modalAnimation, {
+      toValue: show ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
       if (!show) {
         setSearchQuery('');
       }
@@ -204,46 +171,45 @@ export default function FilterBar({
 
   const hasActiveFilters = selectedCity || selectedDistrict || selectedCategory || selectedBrand;
 
-  const renderFilterButton = (type: 'city' | 'district' | 'category' | 'brand') => {
+  const renderFilterChip = (type: 'city' | 'district' | 'category' | 'brand') => {
     const selected = getSelectedValue(type);
     const icon = getFilterIcon(type);
     const isDisabled = type === 'district' && !selectedCity;
+    const label = selected || (
+      type === 'city' ? 'Şehir' :
+      type === 'district' ? 'İlçe' :
+      type === 'category' ? 'Kategori' :
+      'Marka'
+    );
 
     return (
       <TouchableOpacity
         style={[
-          styles.filterButton,
-          selected ? styles.activeFilter : null,
-          isDisabled ? styles.disabledFilter : null,
+          styles.filterChip,
+          selected && styles.activeChip,
+          isDisabled && styles.disabledChip,
         ]}
         onPress={() => {
-          if (isDisabled) return;
-          handleModalOpen(type);
+          if (!isDisabled) handleModalOpen(type);
         }}
         activeOpacity={0.7}
         disabled={isDisabled}
       >
         <FontAwesome
           name={icon}
-          size={16}
-          color={selected ? '#fff' : isDisabled ? '#999' : '#666'}
+          size={14}
+          color={selected ? '#FFFFFF' : isDisabled ? '#999' : '#666'}
         />
         <Text
           style={[
-            styles.filterText,
-            selected ? styles.activeFilterText : null,
-            isDisabled ? styles.disabledFilterText : null,
+            styles.chipText,
+            selected && styles.activeChipText,
+            isDisabled && styles.disabledChipText,
           ]}
           numberOfLines={1}
         >
-          {selected || (type === 'city' ? 'Şehir' : type === 'district' ? 'İlçe' : type === 'category' ? 'Kategori' : 'Marka')}
+          {label}
         </Text>
-        <FontAwesome
-          name="chevron-down"
-          size={12}
-          color={selected ? '#fff' : isDisabled ? '#999' : '#666'}
-          style={styles.chevron}
-        />
       </TouchableOpacity>
     );
   };
@@ -273,38 +239,25 @@ export default function FilterBar({
     );
   };
 
-  const modalTranslateY = modalAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [300, keyboardHeight ? -keyboardHeight : 0],
-  });
-
-  const handleSearchChange = (text: string) => {
-    setSearchQuery(text);
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.mainContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.container}
-        >
-          {renderFilterButton('city')}
-          {renderFilterButton('district')}
-          {renderFilterButton('category')}
-          {renderFilterButton('brand')}
-        </ScrollView>
-
-        {hasActiveFilters && (
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={onClearFilters}
-            activeOpacity={0.7}
-          >
-            <FontAwesome name="times" size={16} color="#FF3B30" />
-          </TouchableOpacity>
-        )}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.chipContainer}>
+          {renderFilterChip('city')}
+          {renderFilterChip('district')}
+          {renderFilterChip('category')}
+          {renderFilterChip('brand')}
+          
+          {hasActiveFilters && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={onClearFilters}
+              activeOpacity={0.7}
+            >
+              <FontAwesome name="times" size={14} color="#FF3B30" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <Modal
@@ -313,13 +266,10 @@ export default function FilterBar({
         visible={modalVisible}
         onRequestClose={handleModalClose}
       >
-        <View style={styles.modalBackground}>
+        <View style={styles.modalOverlay}>
           <View style={[
             styles.modalContent,
-            {
-              maxHeight: keyboardHeight ? SCREEN_HEIGHT - keyboardHeight - 100 : '70%',
-              marginBottom: keyboardHeight
-            }
+            { marginBottom: keyboardHeight }
           ]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
@@ -340,7 +290,7 @@ export default function FilterBar({
                 style={styles.searchInput}
                 placeholder="Ara..."
                 value={searchQuery}
-                onChangeText={handleSearchChange}
+                onChangeText={setSearchQuery}
                 autoCorrect={false}
                 autoCapitalize="none"
                 clearButtonMode="while-editing"
@@ -354,7 +304,6 @@ export default function FilterBar({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.optionsList}
-              style={styles.optionsListContainer}
             />
           </View>
         </View>
@@ -364,102 +313,95 @@ export default function FilterBar({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: '#fff',
+  container: {
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
-  mainContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  content: {
+    paddingHorizontal: 45,
+    paddingVertical: 12,
   },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+    alignItems: 'center',
   },
-  filterButton: {
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F5F5F5',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    marginRight: 8,
+    gap: 6,
   },
-  activeFilter: {
+  activeChip: {
     backgroundColor: '#007AFF',
   },
-  disabledFilter: {
+  disabledChip: {
     opacity: 0.5,
   },
-  filterText: {
+  chipText: {
     fontSize: 14,
     color: '#666',
-    marginLeft: 6,
-    marginRight: 4,
+    fontWeight: '500',
   },
-  activeFilterText: {
-    color: '#fff',
+  activeChipText: {
+    color: '#FFFFFF',
   },
-  disabledFilterText: {
+  disabledChipText: {
     color: '#999',
   },
-  chevron: {
-    marginLeft: 2,
-  },
   clearButton: {
-    padding: 8,
-    marginRight: 16,
+    width: 16,
+    height: 16,
+    borderRadius: 16,
+    backgroundColor: '#FFF0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  modalBackground: {
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
   closeButton: {
-    padding: 8,
     width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#1A1A1A',
     flex: 1,
     textAlign: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
+    backgroundColor: '#FFFFFF',
   },
   searchIcon: {
     marginRight: 8,
@@ -468,14 +410,10 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 36,
     fontSize: 16,
-    color: '#1a1a1a',
-  },
-  optionsListContainer: {
-    flexGrow: 0,
+    color: '#1A1A1A',
   },
   optionsList: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    padding: 12,
   },
   optionItem: {
     flexDirection: 'row',
@@ -487,12 +425,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F5F5F5',
   },
   selectedOption: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8F9FA',
     borderRadius: 8,
   },
   optionText: {
     fontSize: 16,
-    color: '#1a1a1a',
+    color: '#1A1A1A',
   },
   selectedOptionText: {
     color: '#007AFF',
