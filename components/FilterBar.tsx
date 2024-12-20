@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E8E8E8',
   },
   content: {
-    paddingHorizontal: 45,
+    paddingHorizontal: 40,
     paddingVertical: 12,
   },
   chipContainer: {
