@@ -337,9 +337,9 @@ export default function HomeScreen() {
   const renderHeader = () => (
     <View style={styles.headerSection}>
       <View style={styles.welcomeSection}>
-        <Text style={styles.welcomeTitle}>Hoş Geldiniz 👋</Text>
+        <Text style={styles.welcomeTitle}>Otosanayicim 🚘</Text>
         <Text style={styles.welcomeSubtitle}>
-          Size en yakın ve en iyi hizmetleri keşfedin
+          Cebinizdeki Oto Sanayici
         </Text>
       </View>
 
