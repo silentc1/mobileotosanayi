@@ -17,6 +17,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
+import FilterModal from '../components/FilterModal';
 
 const { width } = Dimensions.get('window');
 
@@ -36,6 +37,36 @@ export default function AcilScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState<Location.LocationGeocodedAddress | null>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
+
+  const loadServices = async (filters?: { city?: string; district?: string; category?: string }) => {
+    try {
+      setIsLoading(true);
+      console.log('Filtreler:', filters);
+      
+      let formattedCity = filters?.city;
+      if (formattedCity) {
+        formattedCity = normalizeCity(formattedCity);
+      }
+
+      console.log('Formatlanmış şehir:', formattedCity);
+      
+      const response = await apiService.getAcilServices({
+        sehir: formattedCity,
+        ilce: filters?.district,
+        kategori: filters?.category,
+      });
+      console.log('Bulunan servisler:', response.services.length);
+      setServices(response.services);
+    } catch (error) {
+      console.error('Error loading services:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   const requestLocationPermission = async () => {
     try {
@@ -74,7 +105,7 @@ export default function AcilScreen() {
         const cityName = geocode[0].region || geocode[0].subregion || geocode[0].city;
         if (cityName) {
           console.log('Bulunan şehir:', cityName);
-          loadServices(cityName);
+          loadServices({ city: cityName });
         }
       }
     } catch (error) {
@@ -108,41 +139,31 @@ export default function AcilScreen() {
       .replace(/^[a-z]/, letter => letter.toUpperCase());
   };
 
-  const loadServices = async (city?: string) => {
-    try {
-      setIsLoading(true);
-      console.log('Aranan şehir:', city);
-      
-      let formattedCity = city;
-      if (city) {
-        formattedCity = normalizeCity(city);
-      }
-
-      console.log('Formatlanmış şehir:', formattedCity);
-      
-      const response = await apiService.getAcilServices({
-        sehir: formattedCity
-      });
-      console.log('Bulunan servisler:', response.services.length);
-      setServices(response.services);
-    } catch (error) {
-      console.error('Error loading services:', error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     loadServices();
+  }, []);
+
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const response = await apiService.getAcilServices({});
+        if (response.filters) {
+          setAvailableCities(response.filters.sehirler || []);
+          setAvailableDistricts(response.filters.ilceler || []);
+        }
+      } catch (error) {
+        console.error('Error loading filters:', error);
+      }
+    };
+    loadFilters();
   }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     if (userLocation?.region) {
-      loadServices(userLocation.region);
+      loadServices({ city: userLocation.region });
     } else if (userLocation?.subregion) {
-      loadServices(userLocation.subregion);
+      loadServices({ city: userLocation.subregion });
     } else {
       loadServices();
     }
@@ -220,21 +241,31 @@ export default function AcilScreen() {
         <Text style={styles.headerTitle}>7/24 Acil Yol Yardım</Text>
       </View>
 
-      <TouchableOpacity 
-        style={styles.locationButton}
-        onPress={requestLocationPermission}
-      >
-        <FontAwesome 
-          name={userLocation ? "map-marker" : "location-arrow"} 
-          size={16} 
-          color="#4F46E5" 
-        />
-        <Text style={styles.locationButtonText}>
-          {userLocation ? (
-            `${userLocation.region || userLocation.subregion || ''} ${userLocation.city ? `(${userLocation.city})` : ''}`
-          ) : 'Konumumu Paylaş'}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.filterContainer}>
+        <TouchableOpacity 
+          style={styles.locationButton}
+          onPress={requestLocationPermission}
+        >
+          <FontAwesome 
+            name={userLocation ? "map-marker" : "location-arrow"} 
+            size={16} 
+            color="#4F46E5" 
+          />
+          <Text style={styles.locationButtonText}>
+            {userLocation ? (
+              `${userLocation.region || userLocation.subregion || ''} ${userLocation.city ? `(${userLocation.city})` : ''}`
+            ) : 'Konumumu Paylaş'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <FontAwesome name="filter" size={16} color="#4F46E5" />
+          <Text style={styles.filterButtonText}>Filtreleme Yap</Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -258,6 +289,18 @@ export default function AcilScreen() {
           </View>
         )}
       </ScrollView>
+
+      <FilterModal
+        isVisible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={(filters) => {
+          loadServices(filters);
+          setShowFilterModal(false);
+        }}
+        cities={availableCities}
+        districts={availableDistricts}
+        categories={['Lastikci', 'Çekici', 'Akücü', 'Yakıt']}
+      />
     </SafeAreaView>
   );
 }
@@ -459,5 +502,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     flexShrink: 1,
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E8E8E8',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F3FF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E8E8E8',
+  },
+  filterButtonText: {
+    fontSize: 15,
+    color: '#4F46E5',
+    fontWeight: '500',
   },
 });
