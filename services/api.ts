@@ -3,7 +3,7 @@ import { authService } from './auth';
 import Constants from 'expo-constants';
 
 // Get the server URL from environment variables or use a fallback
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://0.0.0.0:3001/api';
 
 console.log('Using API URL:', API_URL); // Debug log
 

@@ -115,7 +115,7 @@ export default function BilgilendirmeScreen() {
       addMessage('user', input);
       setInput('');
 
-      const prompt = `Sen bir deneyimli araç ustasısın. Cebimdeki Usta uygulaması için kullanıcının "${input}" sorusuna kısa ve öz bilgiler ver. Türkçe yanıtla. En önemli 3-4 maddeyi belirt.`;
+      const prompt = `Sen bir deneyimli araç ustasısın. Otosanayicim uygulaması için kullanıcının "${input}" sorusuna kısa ve öz bilgiler ver. Türkçe yanıtla. En önemli 3-4 maddeyi belirt. Önerilerin için işletmeler sayfasındaki usta işletmelere yönlendir`;
       
       const result = await chatSessionRef.current.sendMessage(prompt);
       const response = await result.response;

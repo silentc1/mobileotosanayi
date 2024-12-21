@@ -72,22 +72,22 @@ export default function RegisterScreen() {
               onPress={handleClose}
             >
               <FontAwesome name="chevron-left" size={20} color="#666" />
-              <Text style={styles.backButtonText}>Back</Text>
+              <Text style={styles.backButtonText}>Geri</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Sign up to get started</Text>
+            <Text style={styles.title}>Hesap oluştur</Text>
+            <Text style={styles.subtitle}>Hesap oluşturmak için lütfen aşağıdaki bilgileri giriniz.</Text>
 
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Full Name *</Text>
+                <Text style={styles.label}>Adınız ve soyadınız *</Text>
                 <View style={styles.inputWrapper}>
                   <FontAwesome name="user" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your full name"
+                    placeholder="Adınızı ve soyadınızı giriniz"
                     value={fullName}
                     onChangeText={setFullName}
                     editable={!isLoading}
@@ -97,12 +97,12 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email *</Text>
+                <Text style={styles.label}>E-posta *</Text>
                 <View style={styles.inputWrapper}>
                   <FontAwesome name="envelope" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your email"
+                    placeholder="E-posta adresinizi giriniz"
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -114,12 +114,12 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Phone (Optional)</Text>
+                <Text style={styles.label}>Telefon (İsteğe bağlı)</Text>
                 <View style={styles.inputWrapper}>
                   <FontAwesome name="phone" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your phone number"
+                    placeholder="Telefon numaranızı giriniz"
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
@@ -135,7 +135,7 @@ export default function RegisterScreen() {
                   <FontAwesome name="lock" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your password"
+                    placeholder="Şifrenizi giriniz"
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
@@ -146,12 +146,12 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Confirm Password *</Text>
+                <Text style={styles.label}>Şifrenizi tekrar giriniz *</Text>
                 <View style={styles.inputWrapper}>
                   <FontAwesome name="lock" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Confirm your password"
+                    placeholder="Şifrenizi tekrar giriniz"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry
@@ -171,7 +171,7 @@ export default function RegisterScreen() {
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <>
-                      <Text style={styles.buttonText}>Create Account</Text>
+                      <Text style={styles.buttonText}>Hesap oluştur</Text>
                       <FontAwesome name="arrow-right" size={18} color="#fff" />
                     </>
                   )}
@@ -180,7 +180,7 @@ export default function RegisterScreen() {
 
               <View style={styles.dividerContainer}>
                 <View style={styles.divider} />
-                <Text style={styles.dividerText}>or</Text>
+                <Text style={styles.dividerText}>veya</Text>
                 <View style={styles.divider} />
               </View>
 
@@ -189,7 +189,7 @@ export default function RegisterScreen() {
                 onPress={() => router.push('/login')}
                 disabled={isLoading}
               >
-                <Text style={styles.secondaryButtonText}>Sign In to Existing Account</Text>
+                <Text style={styles.secondaryButtonText}>Giriş yap</Text>
               </TouchableOpacity>
             </View>
           </View>

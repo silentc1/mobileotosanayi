@@ -71,13 +71,13 @@ export default function LoginScreen() {
               onPress={handleBack}
             >
               <FontAwesome name="chevron-left" size={20} color="#666" />
-              <Text style={styles.backButtonText}>Back</Text>
+              <Text style={styles.backButtonText}>Geri</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+            <Text style={styles.title}>Hoşgeldiniz!</Text>
+            <Text style={styles.subtitle}>Giriş yapmak için lütfen e-posta adresinizi ve şifrenizi giriniz.</Text>
 
             <View style={styles.form}>
               <View style={styles.inputContainer}>
@@ -86,7 +86,7 @@ export default function LoginScreen() {
                   <FontAwesome name="envelope" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your email"
+                    placeholder="E-posta adresinizi giriniz"
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -103,7 +103,7 @@ export default function LoginScreen() {
                   <FontAwesome name="lock" size={18} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your password"
+                    placeholder="Şifrenizi giriniz"
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
@@ -123,7 +123,7 @@ export default function LoginScreen() {
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <>
-                      <Text style={styles.buttonText}>Sign In</Text>
+                      <Text style={styles.buttonText}>Giriş yap</Text>
                       <FontAwesome name="arrow-right" size={18} color="#fff" />
                     </>
                   )}
@@ -132,7 +132,7 @@ export default function LoginScreen() {
 
               <View style={styles.dividerContainer}>
                 <View style={styles.divider} />
-                <Text style={styles.dividerText}>or</Text>
+                <Text style={styles.dividerText}>veya</Text>
                 <View style={styles.divider} />
               </View>
 
@@ -141,7 +141,7 @@ export default function LoginScreen() {
                 onPress={() => router.push('/register')}
                 disabled={isLoading}
               >
-                <Text style={styles.secondaryButtonText}>Create New Account</Text>
+                <Text style={styles.secondaryButtonText}>Yeni hesap oluştur</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,6 +15,12 @@ import { useRouter } from 'expo-router';
 export default function ProfilimScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!user) {
+      router.replace('/(auth)/login');
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -44,25 +50,25 @@ export default function ProfilimScreen() {
 
   const menuItems = [
     {
-      icon: 'user',
+      icon: 'user' as const,
       title: 'Kişisel Bilgiler',
       subtitle: 'Ad, soyad, e-posta, telefon',
       onPress: () => router.push('/(screens)/profile/personal-info'),
     },
     {
-      icon: 'heart',
+      icon: 'heart' as const,
       title: 'Favorilerim',
       subtitle: 'Favori işletmeleriniz',
       onPress: () => router.push('/(screens)/profile/favorites'),
     },
     {
-      icon: 'shield',
+      icon: 'shield' as const,
       title: 'Güvenlik',
       subtitle: 'Şifre değiştirme, hesap güvenliği',
       onPress: () => {},
     },
     {
-      icon: 'question-circle',
+      icon: 'question-circle' as const,
       title: 'Yardım',
       subtitle: 'SSS, iletişim',
       onPress: () => {},
@@ -70,19 +76,7 @@ export default function ProfilimScreen() {
   ];
 
   if (!user) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.loginMessage}>Profil bilgilerinizi görmek için giriş yapın</Text>
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => router.push('/(auth)/login')}
-          >
-            <Text style={styles.loginButtonText}>Giriş Yap</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return null;
   }
 
   return (

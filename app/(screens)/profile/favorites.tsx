@@ -6,9 +6,11 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { FontAwesome } from '@expo/vector-icons';
 import { apiService } from '../../../services/api';
 import BusinessCard from '../../../components/BusinessCard';
 import { Business } from '../../../services/mongodb';
@@ -51,6 +53,12 @@ export default function FavoritesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <FontAwesome name="chevron-left" size={18} color="#007AFF" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Favorilerim</Text>
       </View>
 
@@ -96,11 +104,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '600',
     color: '#1a1a1a',
+    flex: 1,
   },
   listContainer: {
     padding: 16,

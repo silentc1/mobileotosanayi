@@ -9,12 +9,16 @@ import {
   RefreshControl,
   Linking,
   Platform,
-  Modal,
+  Dimensions,
+  StatusBar,
+  Alert,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { FontAwesome } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+
+const { width } = Dimensions.get('window');
 
 type AcilService = {
   _id: string;
@@ -27,37 +31,102 @@ type AcilService = {
   yaklasik: string;
 };
 
-type SortOption = 'price_asc' | 'price_desc' | 'editor' | 'none';
-
 export default function AcilScreen() {
   const [services, setServices] = useState<AcilService[]>([]);
-  const [filters, setFilters] = useState<{
-    sehirler: string[];
-    ilceler: string[];
-    kategoriler: string[];
-  }>({
-    sehirler: [],
-    ilceler: [],
-    kategoriler: [],
-  });
-  const [selectedFilters, setSelectedFilters] = useState({
-    sehir: '',
-    ilce: '',
-    kategori: '',
-  });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showPicker, setShowPicker] = useState<'sehir' | 'ilce' | 'kategori' | null>(null);
-  const [sortOption, setSortOption] = useState<SortOption>('none');
-  const [showSortPicker, setShowSortPicker] = useState(false);
+  const [userLocation, setUserLocation] = useState<Location.LocationGeocodedAddress | null>(null);
 
-  const loadServices = async () => {
+  const requestLocationPermission = async () => {
     try {
-      const response = await apiService.getAcilServices(selectedFilters);
-      setServices(response.services);
-      setFilters(response.filters);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Konum İzni Gerekli',
+          'Size en yakın servisleri gösterebilmemiz için konum izni vermeniz gerekiyor.',
+          [{ text: 'Tamam' }]
+        );
+        return;
+      }
+
+      setIsLoading(true);
+      const location = await Location.getCurrentPositionAsync({});
+      const geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (geocode && geocode[0]) {
+        setUserLocation(geocode[0]);
+        console.log('Konum detayları:', {
+          city: geocode[0].city,
+          district: geocode[0].district,
+          subregion: geocode[0].subregion,
+          region: geocode[0].region,
+          country: geocode[0].country,
+          isoCountryCode: geocode[0].isoCountryCode,
+          postalCode: geocode[0].postalCode,
+          name: geocode[0].name,
+          street: geocode[0].street,
+          timezone: geocode[0].timezone
+        });
+
+        const cityName = geocode[0].region || geocode[0].subregion || geocode[0].city;
+        if (cityName) {
+          console.log('Bulunan şehir:', cityName);
+          loadServices(cityName);
+        }
+      }
     } catch (error) {
-      console.error('Error loading acil services:', error);
+      console.error('Error getting location:', error);
+      Alert.alert(
+        'Hata',
+        'Konum bilginiz alınamadı. Lütfen tekrar deneyin.',
+        [{ text: 'Tamam' }]
+      );
+      setIsLoading(false);
+    }
+  };
+
+  const normalizeCity = (city: string): string => {
+    // Türkçe karakterleri ASCII karşılıklarına dönüştür
+    return city
+      .replace(/İ/g, 'I')
+      .replace(/ı/g, 'i')
+      .replace(/Ş/g, 'S')
+      .replace(/ş/g, 's')
+      .replace(/Ğ/g, 'G')
+      .replace(/ğ/g, 'g')
+      .replace(/Ü/g, 'U')
+      .replace(/ü/g, 'u')
+      .replace(/Ö/g, 'O')
+      .replace(/ö/g, 'o')
+      .replace(/Ç/g, 'C')
+      .replace(/ç/g, 'c')
+      // İlk harfi büyük, diğerleri küçük
+      .toLowerCase()
+      .replace(/^[a-z]/, letter => letter.toUpperCase());
+  };
+
+  const loadServices = async (city?: string) => {
+    try {
+      setIsLoading(true);
+      console.log('Aranan şehir:', city);
+      
+      let formattedCity = city;
+      if (city) {
+        formattedCity = normalizeCity(city);
+      }
+
+      console.log('Formatlanmış şehir:', formattedCity);
+      
+      const response = await apiService.getAcilServices({
+        sehir: formattedCity
+      });
+      console.log('Bulunan servisler:', response.services.length);
+      setServices(response.services);
+    } catch (error) {
+      console.error('Error loading services:', error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -66,218 +135,22 @@ export default function AcilScreen() {
 
   useEffect(() => {
     loadServices();
-  }, [selectedFilters]);
+  }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    loadServices();
+    if (userLocation?.region) {
+      loadServices(userLocation.region);
+    } else if (userLocation?.subregion) {
+      loadServices(userLocation.subregion);
+    } else {
+      loadServices();
+    }
   };
 
   const handleCall = (phoneNumber: string) => {
     Linking.openURL(`tel:${phoneNumber}`);
   };
-
-  const renderPickerButton = (
-    label: string,
-    value: string,
-    type: 'sehir' | 'ilce' | 'kategori'
-  ) => (
-    <TouchableOpacity
-      style={styles.pickerButton}
-      onPress={() => setShowPicker(type)}
-    >
-      <Text style={styles.pickerButtonLabel}>{label}</Text>
-      <Text style={styles.pickerButtonValue}>
-        {value || `Tüm ${label}`}
-      </Text>
-      <FontAwesome name="chevron-down" size={12} color="#666" />
-    </TouchableOpacity>
-  );
-
-  const renderPicker = () => {
-    if (!showPicker) return null;
-
-    let items: string[] = [];
-    let selectedValue = '';
-    let onValueChange = (value: string) => {};
-
-    switch (showPicker) {
-      case 'sehir':
-        items = filters.sehirler;
-        selectedValue = selectedFilters.sehir;
-        onValueChange = (value) => {
-          setSelectedFilters({ ...selectedFilters, sehir: value, ilce: '' });
-          setShowPicker(null);
-        };
-        break;
-      case 'ilce':
-        items = filters.ilceler.filter(
-          (ilce) => !selectedFilters.sehir || 
-          services.some(s => s.acilSehir === selectedFilters.sehir && s.acilIlce === ilce)
-        );
-        selectedValue = selectedFilters.ilce;
-        onValueChange = (value) => {
-          setSelectedFilters({ ...selectedFilters, ilce: value });
-          setShowPicker(null);
-        };
-        break;
-      case 'kategori':
-        items = filters.kategoriler;
-        selectedValue = selectedFilters.kategori;
-        onValueChange = (value) => {
-          setSelectedFilters({ ...selectedFilters, kategori: value });
-          setShowPicker(null);
-        };
-        break;
-    }
-
-    return (
-      <Modal
-        visible={true}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.pickerModalContent}>
-            <View style={styles.pickerHeader}>
-              <TouchableOpacity
-                onPress={() => setShowPicker(null)}
-                style={styles.pickerCloseButton}
-              >
-                <Text style={styles.pickerCloseButtonText}>Kapat</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerTitle}>
-                {showPicker === 'sehir' ? 'Şehir Seçin' : showPicker === 'ilce' ? 'İlçe Seçin' : 'Kategori Seçin'}
-              </Text>
-              <View style={{ width: 50 }} />
-            </View>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedValue}
-                onValueChange={onValueChange}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-              >
-                <Picker.Item 
-                  label={`Tüm ${showPicker === 'sehir' ? 'Şehirler' : showPicker === 'ilce' ? 'İlçeler' : 'Kategoriler'}`} 
-                  value="" 
-                />
-                {items.map((item) => (
-                  <Picker.Item key={item} label={item} value={item} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  const sortServices = (services: AcilService[]): AcilService[] => {
-    const sortedServices = [...services];
-    
-    switch (sortOption) {
-      case 'price_asc':
-        return sortedServices.sort((a, b) => 
-          parseInt(a.yaklasik) - parseInt(b.yaklasik)
-        );
-      case 'price_desc':
-        return sortedServices.sort((a, b) => 
-          parseInt(b.yaklasik) - parseInt(a.yaklasik)
-        );
-      case 'editor':
-        return sortedServices.sort((a, b) => 
-          (b.editor ? 1 : 0) - (a.editor ? 1 : 0)
-        );
-      default:
-        return sortedServices;
-    }
-  };
-
-  const renderSortPicker = () => {
-    if (!showSortPicker) return null;
-
-    return (
-      <Modal
-        visible={true}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.pickerModalContent}>
-            <View style={styles.pickerHeader}>
-              <TouchableOpacity
-                onPress={() => setShowSortPicker(false)}
-                style={styles.pickerCloseButton}
-              >
-                <Text style={styles.pickerCloseButtonText}>Kapat</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerTitle}>Sıralama</Text>
-              <View style={{ width: 50 }} />
-            </View>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={sortOption}
-                onValueChange={(value) => {
-                  setSortOption(value as SortOption);
-                  setShowSortPicker(false);
-                }}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-              >
-                <Picker.Item label="Varsayılan Sıralama" value="none" />
-                <Picker.Item label="Fiyat (Düşükten Yükseğe)" value="price_asc" />
-                <Picker.Item label="Fiyat (Yüksekten Düşüğe)" value="price_desc" />
-                <Picker.Item label="Editörün Seçtikleri" value="editor" />
-              </Picker>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  const renderFilters = () => (
-    <View style={styles.filtersContainer}>
-      <View style={styles.filterItem}>
-        <View style={styles.filterHeader}>
-          <Text style={styles.filterLabel}>Filtrele</Text>
-          {(selectedFilters.sehir || selectedFilters.ilce || selectedFilters.kategori || sortOption !== 'none') && (
-            <TouchableOpacity
-              style={styles.clearFiltersButton}
-              onPress={() => {
-                setSelectedFilters({
-                  sehir: '',
-                  ilce: '',
-                  kategori: '',
-                });
-                setSortOption('none');
-              }}
-            >
-              <Text style={styles.clearFiltersText}>Filtreleri Temizle</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={styles.filterButtons}>
-          {renderPickerButton('Şehir', selectedFilters.sehir, 'sehir')}
-          {renderPickerButton('İlçe', selectedFilters.ilce, 'ilce')}
-          {renderPickerButton('Kategori', selectedFilters.kategori, 'kategori')}
-          <TouchableOpacity
-            style={[styles.pickerButton, styles.sortButton]}
-            onPress={() => setShowSortPicker(true)}
-          >
-            <FontAwesome name="sort" size={14} color="#666" />
-            <Text style={styles.pickerButtonValue}>
-              {sortOption === 'price_asc' ? 'Fiyat ↑' :
-               sortOption === 'price_desc' ? 'Fiyat ↓' :
-               sortOption === 'editor' ? 'Editör Seçimi' :
-               'Sıralama'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
 
   const renderServiceCard = (service: AcilService) => (
     <TouchableOpacity 
@@ -286,81 +159,82 @@ export default function AcilScreen() {
       activeOpacity={0.95}
       onPress={() => handleCall(service.acilNo)}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.serviceInfo}>
-            <View style={styles.typeContainer}>
-              <FontAwesome name="wrench" size={16} color="#007AFF" style={styles.typeIcon} />
-              <Text style={styles.serviceType}>{service.acilType}</Text>
-            </View>
-            <View style={styles.locationContainer}>
-              <FontAwesome name="map-marker" size={14} color="#666" style={styles.locationIcon} />
-              <Text style={styles.location}>
-                {service.acilIlce}, {service.acilSehir}
-              </Text>
-            </View>
+      <View style={styles.cardHeader}>
+        <View style={styles.serviceTypeContainer}>
+          <View style={[styles.statusIndicator, service.isOpen ? styles.openIndicator : styles.closedIndicator]} />
+          <Text style={styles.serviceType}>{service.acilType}</Text>
+        </View>
+        {service.editor && (
+          <View style={styles.verifiedBadge}>
+            <FontAwesome name="check-circle" size={12} color="#4F46E5" />
+            <Text style={styles.verifiedText}>Onaylı</Text>
           </View>
-          <View style={styles.badgeContainer}>
-            <View style={[styles.statusBadge, service.isOpen ? styles.openBadge : styles.closedBadge]}>
-              <FontAwesome 
-                name={service.isOpen ? "check-circle" : "times-circle"} 
-                size={12} 
-                color={service.isOpen ? "#34A853" : "#EA4335"} 
-                style={styles.statusIcon}
-              />
-              <Text style={[styles.statusText, service.isOpen ? styles.openText : styles.closedText]}>
-                {service.isOpen ? 'Açık' : 'Kapalı'}
-              </Text>
-            </View>
-            {service.editor && (
-              <View style={styles.editorBadge}>
-                <FontAwesome name="star" size={12} color="#1a1a1a" style={styles.editorIcon} />
-                <Text style={styles.editorText}>Uygulama Güvencesi</Text>
-              </View>
-            )}
-          </View>
+        )}
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={styles.locationRow}>
+          <FontAwesome name="map-marker" size={16} color="#666" />
+          <Text style={styles.locationText}>{service.acilIlce}, {service.acilSehir}</Text>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.cardFooter}>
+        <View style={styles.infoRow}>
           <View style={styles.priceContainer}>
-            <FontAwesome name="tag" size={14} color="#666" style={styles.priceIcon} />
-            <View>
-              <Text style={styles.priceLabel}>Yaklaşık Ücret:</Text>
-              <Text style={styles.priceValue}>{service.yaklasik} ₺</Text>
-            </View>
+            <Text style={styles.priceLabel}>Yaklaşık Ücret</Text>
+            <Text style={styles.priceValue}>{service.yaklasik} ₺</Text>
           </View>
-          <TouchableOpacity
-            style={styles.callButton}
-            onPress={() => handleCall(service.acilNo)}
-          >
-            <FontAwesome name="phone" size={18} color="#fff" style={styles.callIcon} />
-            <Text style={styles.callButtonText}>Hemen Ara</Text>
-          </TouchableOpacity>
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusLabel}>Durum</Text>
+            <Text style={[styles.statusValue, service.isOpen ? styles.openText : styles.closedText]}>
+              {service.isOpen ? 'Açık' : 'Kapalı'}
+            </Text>
+          </View>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={[styles.callButton, !service.isOpen && styles.callButtonDisabled]}
+        onPress={() => service.isOpen && handleCall(service.acilNo)}
+        disabled={!service.isOpen}
+      >
+        <FontAwesome name="phone" size={18} color="#fff" style={styles.callIcon} />
+        <Text style={styles.callButtonText}>
+          {service.isOpen ? 'Hemen Ara' : 'Şu an Kapalı'}
+        </Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#4F46E5" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, styles.safeArea]} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>7/24 Acil Yol Yardım</Text>
-        <Text style={styles.headerSubtitle}>Size en yakın yol yardım hizmetleri</Text>
       </View>
 
-      {renderFilters()}
-      {renderPicker()}
-      {renderSortPicker()}
+      <TouchableOpacity 
+        style={styles.locationButton}
+        onPress={requestLocationPermission}
+      >
+        <FontAwesome 
+          name={userLocation ? "map-marker" : "location-arrow"} 
+          size={16} 
+          color="#4F46E5" 
+        />
+        <Text style={styles.locationButtonText}>
+          {userLocation ? (
+            `${userLocation.region || userLocation.subregion || ''} ${userLocation.city ? `(${userLocation.city})` : ''}`
+          ) : 'Konumumu Paylaş'}
+        </Text>
+      </TouchableOpacity>
 
       <ScrollView
         style={styles.scrollView}
@@ -372,14 +246,14 @@ export default function AcilScreen() {
       >
         {services.length > 0 ? (
           <View style={styles.cardsContainer}>
-            {sortServices(services).map(renderServiceCard)}
+            {services.map(renderServiceCard)}
           </View>
         ) : (
           <View style={styles.emptyContainer}>
-            <FontAwesome name="search" size={48} color="#999" />
-            <Text style={styles.emptyTitle}>Sonuç Bulunamadı</Text>
+            <FontAwesome name="exclamation-circle" size={48} color="#999" />
+            <Text style={styles.emptyTitle}>Servis Bulunamadı</Text>
             <Text style={styles.emptyText}>
-              Seçili kriterlere uygun acil servis bulunamadı. Lütfen filtreleri değiştirerek tekrar deneyin.
+              Şu anda aktif yol yardım servisi bulunmuyor. Lütfen daha sonra tekrar deneyin.
             </Text>
           </View>
         )}
@@ -393,259 +267,153 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
+  safeArea: {
+    backgroundColor: '#fff',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filtersContainer: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  filterItem: {
-    marginBottom: 12,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  filterButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  pickerButtonLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  pickerButtonValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  pickerModalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 0,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
-    backgroundColor: '#ffffff',
-  },
-  pickerCloseButton: {
-    padding: 8,
-  },
-  pickerCloseButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  picker: {
-    height: 216,
-    backgroundColor: '#ffffff',
-  },
   scrollView: {
-    flex: 1,
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
-    flexGrow: 1,
+    flexGrow: 0,
+    paddingTop: 0,
   },
   cardsContainer: {
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+    paddingBottom: 16,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
-    marginBottom: 2,
-  },
-  cardContent: {
-    padding: 16,
+    marginTop: 8,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  serviceInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  typeContainer: {
+  serviceTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 8,
   },
-  typeIcon: {
-    marginRight: 8,
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  openIndicator: {
+    backgroundColor: '#10B981',
+  },
+  closedIndicator: {
+    backgroundColor: '#EF4444',
   },
   serviceType: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1A1A1A',
   },
-  locationContainer: {
+  verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
   },
-  locationIcon: {
-    marginRight: 6,
-  },
-  location: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  badgeContainer: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  openBadge: {
-    backgroundColor: '#E6F4EA',
-  },
-  closedBadge: {
-    backgroundColor: '#FCE8E8',
-  },
-  statusIcon: {
-    marginRight: 4,
-  },
-  statusText: {
+  verifiedText: {
     fontSize: 12,
+    fontWeight: '500',
+    color: '#4F46E5',
+  },
+  cardBody: {
+    gap: 16,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  locationText: {
+    fontSize: 15,
+    color: '#666',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+  },
+  priceContainer: {
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  priceValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  statusContainer: {
+    alignItems: 'flex-end',
+  },
+  statusLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  statusValue: {
+    fontSize: 15,
     fontWeight: '600',
   },
   openText: {
-    color: '#34A853',
+    color: '#10B981',
   },
   closedText: {
-    color: '#EA4335',
-  },
-  editorBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3D6',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  editorIcon: {
-    marginRight: 4,
-  },
-  editorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E8E8E8',
-    marginVertical: 16,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priceIcon: {
-    marginRight: 8,
-  },
-  priceLabel: {
-    fontSize: 12,
-    color: '#666666',
-  },
-  priceValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#EF4444',
   },
   callButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    minWidth: 120,
     justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  callButtonDisabled: {
+    backgroundColor: '#E5E5EA',
   },
   callIcon: {
-    marginRight: 8,
+    marginRight: 4,
   },
   callButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   emptyContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    marginTop: 32,
+    marginTop: 16,
   },
   emptyTitle: {
     fontSize: 20,
@@ -656,73 +424,40 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#666',
     textAlign: 'center',
     lineHeight: 20,
   },
-  filterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  clearFiltersButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-  },
-  clearFiltersText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  pickerContainer: {
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e1e1e1',
-  },
-  pickerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    textAlign: 'center',
-    flex: 1,
-  },
-  pickerItem: {
-    fontSize: 16,
-    color: '#1a1a1a',
-    backgroundColor: '#ffffff',
-  },
   header: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E8E8E8',
+    backgroundColor: '#fff',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#1A1A1A',
     textAlign: 'center',
   },
-  sortButton: {
+  locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F3FF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     gap: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E8E8E8',
+    minHeight: 48,
   },
-}); 
+  locationButtonText: {
+    fontSize: 15,
+    color: '#4F46E5',
+    fontWeight: '500',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+});
