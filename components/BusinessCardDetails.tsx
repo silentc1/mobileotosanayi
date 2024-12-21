@@ -351,9 +351,9 @@ export default function BusinessCardDetails({
                       </View>
                     </View>
                     <View style={styles.reviewRating}>
-                      {renderRatingStars(review.rating, 12)}
+                      {renderRatingStars(review.rating || 0, 12)}
                       <Text style={styles.reviewRatingNumber}>
-                        {review.rating.toFixed(1)}
+                        {typeof review.rating === 'number' ? review.rating.toFixed(1) : '0.0'}
                       </Text>
                     </View>
                   </View>
@@ -489,7 +489,7 @@ export default function BusinessCardDetails({
   );
 
   const formatDateToTurkish = (timestamp: number) => {
-    const date = new Date(timestamp * 1000);
+    const date = new Date(timestamp.toString().length === 13 ? timestamp : timestamp * 1000);
     return date.toLocaleDateString('tr-TR', {
       year: 'numeric',
       month: 'long',

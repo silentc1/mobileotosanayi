@@ -62,7 +62,6 @@ const CATEGORIES: FilterOption[] = [
 
 const BRANDS: FilterOption[] = [
   { label: 'Tüm Markalar', value: '' },
-  { label: 'Çok Markalı', value: 'Çok Markalı' },
   { label: 'Alfa Romeo', value: 'Alfa Romeo' },
   { label: 'Audi', value: 'Audi' },
   { label: 'BMW', value: 'BMW' },
