@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -17,6 +18,9 @@ type FilterModalProps = {
   cities: string[];
   districts: string[];
   categories: string[];
+  initialCity?: string;
+  initialDistrict?: string;
+  isLocationShared?: boolean;
 };
 
 export default function FilterModal({
@@ -26,14 +30,21 @@ export default function FilterModal({
   cities,
   districts,
   categories,
+  initialCity,
+  initialDistrict,
+  isLocationShared = false,
 }: FilterModalProps) {
-  const [activeTab, setActiveTab] = useState<'category' | 'location'>('category');
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [citySearch, setCitySearch] = useState('');
   const [districtSearch, setDistrictSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
+
+  useEffect(() => {
+    if (initialCity) setSelectedCity(initialCity);
+    if (initialDistrict) setSelectedDistrict(initialDistrict);
+  }, [initialCity, initialDistrict]);
 
   const filteredCities = cities.filter(city =>
     city.toLowerCase().includes(citySearch.toLowerCase())
@@ -47,22 +58,24 @@ export default function FilterModal({
     category.toLowerCase().includes(categorySearch.toLowerCase())
   );
 
-  const handleClear = () => {
-    setSelectedCity('');
-    setSelectedDistrict('');
-    setSelectedCategory('');
-    setCitySearch('');
-    setDistrictSearch('');
-    setCategorySearch('');
-  };
-
   const handleApply = () => {
     onApply({
       city: selectedCity,
       district: selectedDistrict,
-      category: selectedCategory,
+      category: selectedCategory
     });
     onClose();
+  };
+
+  const handleClear = () => {
+    if (!isLocationShared) {
+      setSelectedCity('');
+      setSelectedDistrict('');
+    }
+    setSelectedCategory('');
+    setCitySearch('');
+    setDistrictSearch('');
+    setCategorySearch('');
   };
 
   return (
@@ -84,61 +97,11 @@ export default function FilterModal({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'category' && styles.activeTab]}
-              onPress={() => setActiveTab('category')}
-            >
-              <Text style={[styles.tabText, activeTab === 'category' && styles.activeTabText]}>
-                Kategori
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'location' && styles.activeTab]}
-              onPress={() => setActiveTab('location')}
-            >
-              <Text style={[styles.tabText, activeTab === 'location' && styles.activeTabText]}>
-                İl/İlçe
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           <ScrollView style={styles.modalBody}>
-            {activeTab === 'category' ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Kategori Seçin</Text>
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Kategori ara..."
-                  value={categorySearch}
-                  onChangeText={setCategorySearch}
-                  placeholderTextColor="#999"
-                />
-                <ScrollView style={styles.optionsList} nestedScrollEnabled>
-                  {filteredCategories.map((category) => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.optionItem,
-                        selectedCategory === category && styles.selectedOption
-                      ]}
-                      onPress={() => setSelectedCategory(category)}
-                    >
-                      <Text style={[
-                        styles.optionText,
-                        selectedCategory === category && styles.selectedOptionText
-                      ]}>
-                        {category}
-                      </Text>
-                      {selectedCategory === category && (
-                        <FontAwesome name="check" size={16} color="#4F46E5" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : (
+            {/* Şehir ve İlçe seçimi sadece konum paylaşılmamışsa gösterilir */}
+            {!isLocationShared && (
               <>
+                {/* Şehir Seçimi */}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Şehir Seçin</Text>
                   <TextInput
@@ -156,7 +119,10 @@ export default function FilterModal({
                           styles.optionItem,
                           selectedCity === city && styles.selectedOption
                         ]}
-                        onPress={() => setSelectedCity(city)}
+                        onPress={() => {
+                          setSelectedCity(city);
+                          setSelectedDistrict('');
+                        }}
                       >
                         <Text style={[
                           styles.optionText,
@@ -172,49 +138,86 @@ export default function FilterModal({
                   </ScrollView>
                 </View>
 
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>İlçe Seçin</Text>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="İlçe ara..."
-                    value={districtSearch}
-                    onChangeText={setDistrictSearch}
-                    placeholderTextColor="#999"
-                  />
-                  <ScrollView style={styles.optionsList} nestedScrollEnabled>
-                    {filteredDistricts.map((district) => (
-                      <TouchableOpacity
-                        key={district}
-                        style={[
-                          styles.optionItem,
-                          selectedDistrict === district && styles.selectedOption
-                        ]}
-                        onPress={() => setSelectedDistrict(district)}
-                      >
-                        <Text style={[
-                          styles.optionText,
-                          selectedDistrict === district && styles.selectedOptionText
-                        ]}>
-                          {district}
-                        </Text>
-                        {selectedDistrict === district && (
-                          <FontAwesome name="check" size={16} color="#4F46E5" />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
+                {/* İlçe Seçimi */}
+                {selectedCity && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>İlçe Seçin</Text>
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="İlçe ara..."
+                      value={districtSearch}
+                      onChangeText={setDistrictSearch}
+                      placeholderTextColor="#999"
+                    />
+                    <ScrollView style={styles.optionsList} nestedScrollEnabled>
+                      {filteredDistricts.map((district) => (
+                        <TouchableOpacity
+                          key={district}
+                          style={[
+                            styles.optionItem,
+                            selectedDistrict === district && styles.selectedOption
+                          ]}
+                          onPress={() => setSelectedDistrict(district)}
+                        >
+                          <Text style={[
+                            styles.optionText,
+                            selectedDistrict === district && styles.selectedOptionText
+                          ]}>
+                            {district}
+                          </Text>
+                          {selectedDistrict === district && (
+                            <FontAwesome name="check" size={16} color="#4F46E5" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
               </>
             )}
+
+            {/* Kategori Seçimi */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Kategori Seçin</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Kategori ara..."
+                value={categorySearch}
+                onChangeText={setCategorySearch}
+                placeholderTextColor="#999"
+              />
+              <ScrollView style={styles.optionsList} nestedScrollEnabled>
+                {filteredCategories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.optionItem,
+                      selectedCategory === category && styles.selectedOption
+                    ]}
+                    onPress={() => setSelectedCategory(category)}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      selectedCategory === category && styles.selectedOptionText
+                    ]}>
+                      {category}
+                    </Text>
+                    {selectedCategory === category && (
+                      <FontAwesome name="check" size={16} color="#4F46E5" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </ScrollView>
 
           <TouchableOpacity
             style={[
               styles.applyButton,
-              !selectedCategory && !selectedCity && styles.applyButtonDisabled
+              (!selectedCategory && (!selectedCity || isLocationShared)) && styles.applyButtonDisabled
             ]}
             onPress={handleApply}
-            disabled={!selectedCategory && !selectedCity}
+            disabled={!selectedCategory && (!selectedCity || isLocationShared)}
           >
             <Text style={styles.applyButtonText}>
               Uygula
@@ -261,28 +264,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1A1A1A',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E8E8E8',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#4F46E5',
-  },
-  tabText: {
-    fontSize: 15,
-    color: '#666',
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: '#4F46E5',
   },
   modalBody: {
     padding: 16,

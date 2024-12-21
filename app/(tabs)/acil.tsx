@@ -40,33 +40,8 @@ export default function AcilScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
-
-  const loadServices = async (filters?: { city?: string; district?: string; category?: string }) => {
-    try {
-      setIsLoading(true);
-      console.log('Filtreler:', filters);
-      
-      let formattedCity = filters?.city;
-      if (formattedCity) {
-        formattedCity = normalizeCity(formattedCity);
-      }
-
-      console.log('Formatlanmış şehir:', formattedCity);
-      
-      const response = await apiService.getAcilServices({
-        sehir: formattedCity,
-        ilce: filters?.district,
-        kategori: filters?.category,
-      });
-      console.log('Bulunan servisler:', response.services.length);
-      setServices(response.services);
-    } catch (error) {
-      console.error('Error loading services:', error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   const requestLocationPermission = async () => {
     try {
@@ -102,7 +77,7 @@ export default function AcilScreen() {
           timezone: geocode[0].timezone
         });
 
-        const cityName = geocode[0].region || geocode[0].subregion || geocode[0].city;
+        const cityName = geocode[0].region || geocode[0].subregion || geocode[0].city || '';
         if (cityName) {
           console.log('Bulunan şehir:', cityName);
           loadServices({ city: cityName });
@@ -139,8 +114,38 @@ export default function AcilScreen() {
       .replace(/^[a-z]/, letter => letter.toUpperCase());
   };
 
+  const loadServices = async (params: { city?: string; district?: string; category?: string }) => {
+    try {
+      setIsLoading(true);
+      console.log('Filtreleme parametreleri:', params);
+      
+      let formattedCity = params.city;
+      if (formattedCity) {
+        formattedCity = normalizeCity(formattedCity);
+      }
+
+      console.log('Formatlanmış şehir:', formattedCity);
+      
+      const response = await apiService.getAcilServices({
+        sehir: formattedCity,
+        ilce: params.district,
+        kategori: params.category
+      });
+      console.log('Bulunan servisler:', response.services.length);
+      setServices(response.services);
+      if (params.category) {
+        setSelectedCategory(params.category);
+      }
+    } catch (error) {
+      console.error('Error loading services:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    loadServices();
+    loadServices({});
   }, []);
 
   useEffect(() => {
@@ -150,6 +155,7 @@ export default function AcilScreen() {
         if (response.filters) {
           setAvailableCities(response.filters.sehirler || []);
           setAvailableDistricts(response.filters.ilceler || []);
+          setAvailableCategories(response.filters.kategoriler || []);
         }
       } catch (error) {
         console.error('Error loading filters:', error);
@@ -161,16 +167,28 @@ export default function AcilScreen() {
   const handleRefresh = () => {
     setIsRefreshing(true);
     if (userLocation?.region) {
-      loadServices({ city: userLocation.region });
+      loadServices({
+        city: userLocation.region,
+        district: userLocation.city || undefined,
+        category: selectedCategory || undefined
+      });
     } else if (userLocation?.subregion) {
-      loadServices({ city: userLocation.subregion });
+      loadServices({
+        city: userLocation.subregion,
+        district: userLocation.city || undefined,
+        category: selectedCategory || undefined
+      });
     } else {
-      loadServices();
+      loadServices({});
     }
   };
 
   const handleCall = (phoneNumber: string) => {
     Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const handleFilterApply = (filters: { city?: string; district?: string; category?: string }) => {
+    loadServices(filters);
   };
 
   const renderServiceCard = (service: AcilService) => (
@@ -259,11 +277,27 @@ export default function AcilScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.filterButton}
+          style={[styles.filterButton, selectedCategory && styles.activeFilterButton]}
           onPress={() => setShowFilterModal(true)}
         >
           <FontAwesome name="filter" size={16} color="#4F46E5" />
-          <Text style={styles.filterButtonText}>Filtreleme Yap</Text>
+          <Text style={[styles.filterButtonText, selectedCategory && styles.activeFilterText]}>
+            {selectedCategory || 'Filtreleme Yap'}
+          </Text>
+          {selectedCategory && (
+            <TouchableOpacity
+              style={styles.clearFilterButton}
+              onPress={() => {
+                setSelectedCategory('');
+                loadServices({
+                  city: userLocation?.region || userLocation?.subregion || undefined,
+                  district: userLocation?.city || undefined
+                });
+              }}
+            >
+              <FontAwesome name="times" size={14} color="#4F46E5" />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -293,13 +327,13 @@ export default function AcilScreen() {
       <FilterModal
         isVisible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
-        onApply={(filters) => {
-          loadServices(filters);
-          setShowFilterModal(false);
-        }}
+        onApply={handleFilterApply}
         cities={availableCities}
         districts={availableDistricts}
-        categories={['Lastikci', 'Çekici', 'Akücü', 'Yakıt']}
+        categories={availableCategories}
+        initialCity={userLocation?.region || userLocation?.subregion || undefined}
+        initialDistrict={userLocation?.city || undefined}
+        isLocationShared={!!userLocation}
       />
     </SafeAreaView>
   );
@@ -523,5 +557,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#4F46E5',
     fontWeight: '500',
+  },
+  activeFilterButton: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#F5F3FF',
+  },
+  activeFilterText: {
+    color: '#4F46E5',
+  },
+  clearFilterButton: {
+    padding: 4,
+    marginLeft: 4,
   },
 });
