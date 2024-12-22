@@ -2,6 +2,7 @@ import { Business, Review } from '../services/mongodb';
 import { authService } from './auth';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { Campaign } from '../components/CampaignButton';
 
 // Get the server URL from environment variables or use a fallback
 const API_URL = __DEV__ 
@@ -218,16 +219,47 @@ class ApiService {
 
   // Campaign endpoints
   public async getCampaigns(): Promise<any> {
-    console.log('Fetching campaigns...'); // Debug log
-    return this.fetch('/campaigns');
+    console.log('Fetching campaigns from API...');
+    try {
+      const response = await this.fetch('/campaigns');
+      console.log('Raw campaign response:', response);
+
+      // Transform campaign data if needed
+      if (response && response.campaigns) {
+        const transformedCampaigns = response.campaigns.map((campaign: any) => ({
+          ...campaign,
+          startDate: new Date(campaign.startDate),
+          endDate: new Date(campaign.endDate),
+          createdAt: new Date(campaign.createdAt),
+          updatedAt: new Date(campaign.updatedAt)
+        }));
+        return { campaigns: transformedCampaigns };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error in getCampaigns:', error);
+      throw error;
+    }
   }
 
   public async createCampaign(data: {
     title: string;
     description: string;
-    startDate: string;
-    endDate: string;
-    businessId: string;
+    startDate: Date;
+    endDate: Date;
+    isActive: boolean;
+    vehicleBrand: string;
+    vehicleModel: string;
+    vehicleYear: number;
+    originalPrice: number;
+    discountedPrice: number;
+    discountPercentage: number;
+    images: string[];
+    terms: string;
+    features: string[];
+    stockCount: number;
+    dealerLocations: string[];
   }): Promise<any> {
     return this.fetchWithAuth('/campaigns', {
       method: 'POST',
@@ -280,6 +312,29 @@ class ApiService {
       console.warn('Unexpected remove favorite response:', response);
     }
     return response;
+  }
+
+  // Campaign related API calls
+  public async getAllCampaigns(): Promise<Campaign[]> {
+    try {
+      const response = await this.fetch('/campaigns');
+      const data = await response.json();
+      return data.campaigns;
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+      throw error;
+    }
+  }
+
+  public async getCampaignById(id: string): Promise<Campaign> {
+    try {
+      const response = await this.fetch(`/campaigns/${id}`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      throw error;
+    }
   }
 }
 

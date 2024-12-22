@@ -12,6 +12,7 @@ import {
   Platform,
   Dimensions,
   StatusBar,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
@@ -20,10 +21,12 @@ import FilterBar from '../../components/FilterBar';
 import Header from '../../components/Header';
 import BannerSlider from '../../components/BannerSlider';
 import PopularCategories from '../../components/PopularCategories';
+import CampaignButton from '../../components/CampaignButton';
 import { Business as MongoBusiness } from '../../services/mongodb';
 import { apiService } from '../../services/api';
 import { Business as CardBusiness } from '../../components/BusinessCardDetails';
 import { CITIES, DISTRICTS, getDistrictsForCity } from '../../data/locations';
+import { Campaign } from '../../components/CampaignButton';
 
 type FilterOption = {
   label: string;
@@ -167,6 +170,9 @@ export default function HomeScreen() {
   const [availableDistricts, setAvailableDistricts] = useState<FilterOption[]>(getDistrictsForCity(''));
   const [sortOption, setSortOption] = useState<SortOption>('none');
   const [showSortPicker, setShowSortPicker] = useState(false);
+  const [activeCampaigns, setActiveCampaigns] = useState<Campaign[]>([]);
+  const [showCampaignsModal, setShowCampaignsModal] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
   const fetchBusinesses = useCallback(async () => {
     try {
@@ -212,6 +218,47 @@ export default function HomeScreen() {
     fetchBusinesses();
   }, [fetchBusinesses]);
 
+  const fetchActiveCampaigns = useCallback(async () => {
+    try {
+      console.log('Fetching campaigns...');
+      const response = await apiService.getCampaigns();
+      console.log('Campaign response:', response);
+      
+      if (response && response.campaigns) {
+        // Filter active campaigns and transform dates
+        const currentCampaigns = response.campaigns
+          .filter((campaign: Campaign) => campaign.isActive)
+          .map((campaign: Campaign) => ({
+            ...campaign,
+            remainingDays: Math.ceil(
+              (new Date(campaign.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+            ),
+            formattedStartDate: new Date(campaign.startDate).toLocaleDateString('tr-TR'),
+            formattedEndDate: new Date(campaign.endDate).toLocaleDateString('tr-TR'),
+            savingsAmount: campaign.originalPrice - campaign.discountedPrice
+          }));
+        
+        console.log('Active campaigns:', currentCampaigns);
+        setActiveCampaigns(currentCampaigns);
+      } else {
+        console.log('No campaigns found in response');
+        setActiveCampaigns([]);
+      }
+    } catch (err) {
+      console.error('Error fetching campaigns:', err);
+      setActiveCampaigns([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveCampaigns();
+  }, [fetchActiveCampaigns]);
+
+  // Add debug log for activeCampaigns state
+  useEffect(() => {
+    console.log('Active campaigns state:', activeCampaigns);
+  }, [activeCampaigns]);
+
   const handleFilterChange = useCallback((filterType: 'city' | 'district' | 'category' | 'brand', value: string) => {
     switch (filterType) {
       case 'city':
@@ -244,8 +291,9 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchBusinesses();
-  }, [fetchBusinesses]);
+    await Promise.all([fetchBusinesses(), fetchActiveCampaigns()]);
+    setRefreshing(false);
+  }, [fetchBusinesses, fetchActiveCampaigns]);
 
   const sortBusinesses = (businesses: MongoBusiness[]): MongoBusiness[] => {
     const sortedBusinesses = [...businesses];
@@ -333,6 +381,80 @@ export default function HomeScreen() {
     );
   };
 
+  const renderCampaignsModal = () => {
+    if (!showCampaignsModal) return null;
+
+    return (
+      <Modal
+        visible={true}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowCampaignsModal(false);
+          setSelectedCampaign(null);
+        }}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  setShowCampaignsModal(false);
+                  setSelectedCampaign(null);
+                }}
+              >
+                <FontAwesome name="chevron-down" size={16} color="#666" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Kampanyalar</Text>
+              <View style={styles.closeButton} />
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              {activeCampaigns.map((campaign, index) => (
+                <TouchableOpacity
+                  key={campaign._id || index}
+                  style={styles.campaignListItem}
+                  onPress={() => {
+                    setSelectedCampaign(campaign);
+                    setShowCampaignsModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={{ uri: campaign.images[0] }}
+                    style={styles.campaignThumbnail}
+                  />
+                  <View style={styles.campaignListContent}>
+                    <View style={styles.campaignListHeader}>
+                      <Text style={styles.campaignListTitle} numberOfLines={1}>
+                        {campaign.vehicleYear} {campaign.vehicleBrand} {campaign.vehicleModel}
+                      </Text>
+                      <View style={styles.discountBadge}>
+                        <Text style={styles.discountText}>%{campaign.discountPercentage}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.campaignListDescription} numberOfLines={2}>
+                      {campaign.description}
+                    </Text>
+                    <View style={styles.campaignListFooter}>
+                      <Text style={styles.remainingDays}>
+                        {campaign.remainingDays} gün kaldı
+                      </Text>
+                      <Text style={styles.stockCount}>
+                        Stok: {campaign.stockCount}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderHeader = () => (
     <View style={styles.headerSection}>
       <View style={styles.welcomeSection}>
@@ -343,6 +465,20 @@ export default function HomeScreen() {
       </View>
 
       <BannerSlider />
+
+      <View style={styles.campaignsButtonContainer}>
+        <TouchableOpacity
+          style={styles.campaignsButton}
+          onPress={() => setShowCampaignsModal(true)}
+          activeOpacity={0.8}
+        >
+          <FontAwesome name="tag" size={20} color="#FFFFFF" />
+          <Text style={styles.campaignsButtonText}>
+            Kampanyalar ({activeCampaigns.length})
+          </Text>
+          <FontAwesome name="chevron-right" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.categoriesSection}>
         <PopularCategories 
@@ -421,50 +557,66 @@ export default function HomeScreen() {
           <Text style={styles.loadingText}>İşletmeler yükleniyor...</Text>
         </View>
       ) : (
-        <FlatList
-          data={sortBusinesses(businesses)}
-          renderItem={({ item }) => (
-            <BusinessCard
-              business={mapBusinessToCardBusiness(item)}
-              onPress={() => handleBusinessPress(item)}
-            />
+        <>
+          <FlatList
+            data={sortBusinesses(businesses)}
+            renderItem={({ item }) => (
+              <BusinessCard
+                business={mapBusinessToCardBusiness(item)}
+                onPress={() => handleBusinessPress(item)}
+              />
+            )}
+            keyExtractor={(item) => item._id.toString()}
+            contentContainerStyle={styles.listContainer}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <FontAwesome name="search" size={48} color="#999" />
+                <Text style={styles.emptyTitle}>Sonuç Bulunamadı</Text>
+                <Text style={styles.emptyText}>
+                  {selectedCity || selectedDistrict || selectedCategory || selectedBrand
+                    ? 'Bu filtrelere uygun işletme bulunamadı'
+                    : 'Henüz işletme bulunmamaktadır'}
+                </Text>
+                {(selectedCity || selectedDistrict || selectedCategory || selectedBrand) && (
+                  <TouchableOpacity
+                    style={styles.clearFiltersButton}
+                    onPress={handleClearFilters}
+                  >
+                    <FontAwesome name="times-circle" size={16} color="#007AFF" />
+                    <Text style={styles.clearFiltersText}>Filtreleri Temizle</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            }
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh}
+                tintColor="#007AFF"
+                title="Yenileniyor..."
+                titleColor="#666666"
+              />
+            }
+            showsVerticalScrollIndicator={false}
+          />
+          {renderSortPicker()}
+          {renderCampaignsModal()}
+          {selectedCampaign && (
+            <Modal
+              visible={true}
+              transparent={true}
+              animationType="slide"
+              onRequestClose={() => setSelectedCampaign(null)}
+            >
+              <CampaignButton
+                campaign={selectedCampaign}
+                onClose={() => setSelectedCampaign(null)}
+              />
+            </Modal>
           )}
-          keyExtractor={(item) => item._id.toString()}
-          contentContainerStyle={styles.listContainer}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <FontAwesome name="search" size={48} color="#999" />
-              <Text style={styles.emptyTitle}>Sonuç Bulunamadı</Text>
-              <Text style={styles.emptyText}>
-                {selectedCity || selectedDistrict || selectedCategory || selectedBrand
-                  ? 'Bu filtrelere uygun işletme bulunamadı'
-                  : 'Henüz işletme bulunmamaktadır'}
-              </Text>
-              {(selectedCity || selectedDistrict || selectedCategory || selectedBrand) && (
-                <TouchableOpacity
-                  style={styles.clearFiltersButton}
-                  onPress={handleClearFilters}
-                >
-                  <FontAwesome name="times-circle" size={16} color="#007AFF" />
-                  <Text style={styles.clearFiltersText}>Filtreleri Temizle</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh}
-              tintColor="#007AFF"
-              title="Yenileniyor..."
-              titleColor="#666666"
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
+        </>
       )}
-      {renderSortPicker()}
     </SafeAreaView>
   );
 }
@@ -501,13 +653,38 @@ const styles = StyleSheet.create({
     color: '#666666',
     lineHeight: 22,
   },
+  campaignsButtonContainer: {
+    paddingTop: 24,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  campaignsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 6,
+  },
+  campaignsButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
   categoriesSection: {
     paddingTop: 24,
     paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
   },
   filterSection: {
     paddingTop: 16,
     paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -680,5 +857,101 @@ const styles = StyleSheet.create({
   selectedSortOptionText: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  retryIcon: {
+    marginRight: 4,
+  },
+  retryText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  modalScroll: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  campaignListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  campaignThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  campaignListContent: {
+    flex: 1,
+  },
+  campaignListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  campaignListTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  discountBadge: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  discountText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  campaignListDescription: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  campaignListFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  remainingDays: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  stockCount: {
+    fontSize: 14,
+    color: '#666666',
   },
 });
