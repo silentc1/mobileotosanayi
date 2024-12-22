@@ -6,9 +6,9 @@ import { Platform } from 'react-native';
 // Get the server URL from environment variables or use a fallback
 const API_URL = __DEV__ 
   ? Platform.select({
-      ios: 'http://localhost:3001/api',
+      ios: 'http://192.168.1.7:3001/api',
       android: 'http://10.0.2.2:3001/api',
-      default: 'http://localhost:3001/api',
+      default: 'http://192.168.1.7:3001/api',
     })
   : 'https://your-production-api.com/api';
 
