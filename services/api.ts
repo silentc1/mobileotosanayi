@@ -1,9 +1,16 @@
 import { Business, Review } from '../services/mongodb';
 import { authService } from './auth';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Get the server URL from environment variables or use a fallback
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://0.0.0.0:3001/api';
+const API_URL = __DEV__ 
+  ? Platform.select({
+      ios: 'http://localhost:3001/api',
+      android: 'http://10.0.2.2:3001/api',
+      default: 'http://localhost:3001/api',
+    })
+  : 'https://your-production-api.com/api';
 
 console.log('Using API URL:', API_URL); // Debug log
 
