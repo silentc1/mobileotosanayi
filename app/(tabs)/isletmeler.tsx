@@ -27,6 +27,7 @@ import { apiService } from '../../services/api';
 import { Business as CardBusiness } from '../../components/BusinessCardDetails';
 import { CITIES, DISTRICTS, getDistrictsForCity } from '../../data/locations';
 import { Campaign } from '../../components/CampaignButton';
+import FloatingAssistant from '../../components/FloatingAssistant';
 
 type FilterOption = {
   label: string;
@@ -615,6 +616,7 @@ export default function HomeScreen() {
               />
             </Modal>
           )}
+          <FloatingAssistant />
         </>
       )}
     </SafeAreaView>

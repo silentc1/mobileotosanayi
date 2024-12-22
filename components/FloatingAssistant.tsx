@@ -11,37 +11,19 @@ import {
   ScrollView,
   Dimensions,
   KeyboardAvoidingView,
+  Modal,
+  Animated,
+  PanResponder,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GEMINI_API_KEY } from '@env';
 
-const { width } = Dimensions.get('window');
-const cardWidth = width - 32;
+const { width, height } = Dimensions.get('window');
+const BUTTON_SIZE = 60;
+const EXPANDED_HEIGHT = height * 0.7;
 
-if (!GEMINI_API_KEY) {
-  console.error('GEMINI_API_KEY is not defined in environment variables');
-}
-
-// Initialize Gemini API with optimized settings
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
-// Optimized generation config for faster responses
-const generationConfig = {
-  temperature: 0.7,
-  topP: 0.8,
-  topK: 20,
-  maxOutputTokens: 4096,
-};
-
-// Initialize model with caching
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-pro",
-  generationConfig,
-});
-
-// Chat message type
 type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -49,7 +31,6 @@ type ChatMessage = {
   timestamp: number;
 };
 
-// Common questions for quick access
 const QUICK_QUESTIONS = [
   'Motor yağı değişimi ne zaman yapılmalı?',
   'Lastik basıncı nasıl kontrol edilir?',
@@ -59,15 +40,36 @@ const QUICK_QUESTIONS = [
   'Yakıt tasarrufu için öneriler nelerdir?',
 ];
 
-export default function BilgilendirmeScreen() {
+if (!GEMINI_API_KEY) {
+  console.error('GEMINI_API_KEY is not defined in environment variables');
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+const generationConfig = {
+  temperature: 0.7,
+  topP: 0.8,
+  topK: 20,
+  maxOutputTokens: 4096,
+};
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-pro",
+  generationConfig,
+});
+
+export default function FloatingAssistant() {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const chatSessionRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [position] = useState(new Animated.ValueXY({ x: width - BUTTON_SIZE - 20, y: height - BUTTON_SIZE - 100 }));
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Initialize chat session on mount
   useEffect(() => {
     try {
       chatSessionRef.current = model.startChat({
@@ -80,9 +82,50 @@ export default function BilgilendirmeScreen() {
       console.error('Chat başlatılırken hata:', errorMessage);
       setError(errorMessage);
     }
+
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
   }, []);
 
-  // Optimized message handling
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        setIsDragging(true);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        position.setValue({
+          x: Math.max(0, Math.min(width - BUTTON_SIZE, position.x._value + gestureState.dx)),
+          y: Math.max(0, Math.min(height - BUTTON_SIZE, position.y._value + gestureState.dy)),
+        });
+      },
+      onPanResponderRelease: () => {
+        setIsDragging(false);
+        const snapToEdge = () => {
+          const targetX = position.x._value > width / 2 ? width - BUTTON_SIZE - 20 : 20;
+          Animated.spring(position.x, {
+            toValue: targetX,
+            useNativeDriver: false,
+          }).start();
+        };
+        snapToEdge();
+      },
+    })
+  ).current;
+
   const addMessage = useCallback((role: 'user' | 'assistant', content: string) => {
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -93,7 +136,6 @@ export default function BilgilendirmeScreen() {
     setMessages(prev => [...prev, newMessage]);
   }, []);
 
-  // Scroll to bottom when new message arrives
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
@@ -168,144 +210,171 @@ export default function BilgilendirmeScreen() {
     </View>
   ), []);
 
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <FontAwesome name="exclamation-circle" size={48} color="#ff3b30" />
-        <Text style={styles.errorTitle}>Bir Hata Oluştu</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton} 
-          onPress={() => {
-            setError(null);
-            chatSessionRef.current = model.startChat({
-              history: [],
-              generationConfig,
-            });
-          }}
-        >
-          <FontAwesome name="refresh" size={16} color="#FFFFFF" style={styles.retryIcon} />
-          <Text style={styles.retryButtonText}>Tekrar Dene</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+  const renderFloatingButton = () => (
+    <Animated.View
+      style={[
+        styles.floatingButton,
+        {
+          transform: [
+            { translateX: position.x },
+            { translateY: position.y }
+          ]
+        }
+      ]}
+      {...panResponder.panHandlers}
     >
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Ustaya Sor</Text>
-          <Text style={styles.headerSubtitle}>Aracınızla ilgili tüm sorularınızı yanıtlayalım</Text>
-        </View>
+      <TouchableOpacity
+        onPress={() => !isDragging && setIsExpanded(true)}
+        style={styles.buttonContent}
+      >
+        <FontAwesome name="comments" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+    </Animated.View>
+  );
 
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={[
-            styles.messagesContent,
-            { flexGrow: 1, justifyContent: messages.length === 0 ? 'flex-start' : 'flex-end' }
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-        >
-          {messages.length === 0 ? (
-            <View style={styles.quickQuestionsContainer}>
+  const renderExpandedView = () => (
+    <Modal
+      visible={isExpanded}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setIsExpanded(false)}
+    >
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalContainer}
+      >
+        <View style={[styles.expandedContainer, { marginBottom: keyboardHeight }]}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Ustaya Sor</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsExpanded(false)}
+            >
+              <FontAwesome name="times" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {messages.length === 0 ? (
               <View style={styles.welcomeContainer}>
                 <FontAwesome name="comments" size={48} color="#007AFF" />
                 <Text style={styles.welcomeTitle}>Ustaya Sorun</Text>
                 <Text style={styles.welcomeText}>
                   Aracınızla ilgili her türlü sorunuzu deneyimli ustamıza sorabilirsiniz.
                 </Text>
+                <View style={styles.quickQuestionsContainer}>
+                  <Text style={styles.quickQuestionsTitle}>Sık Sorulan Sorular:</Text>
+                  {QUICK_QUESTIONS.map((question, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.quickQuestionButton}
+                      onPress={() => handleQuickQuestion(question)}
+                    >
+                      <FontAwesome name="question-circle" size={16} color="#007AFF" />
+                      <Text style={styles.quickQuestionText}>{question}</Text>
+                      <FontAwesome name="chevron-right" size={12} color="#666" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <Text style={styles.quickQuestionsTitle}>Sık Sorulan Sorular:</Text>
-              {QUICK_QUESTIONS.map((question, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.quickQuestionButton}
-                  onPress={() => handleQuickQuestion(question)}
-                >
-                  <FontAwesome name="question-circle" size={16} color="#007AFF" />
-                  <Text style={styles.quickQuestionText}>{question}</Text>
-                  <FontAwesome name="chevron-right" size={12} color="#666" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))
-          )}
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={styles.loadingText}>Yanıt hazırlanıyor...</Text>
-            </View>
-          )}
-        </ScrollView>
+            ) : (
+              messages.map((msg) => (
+                <MessageBubble key={msg.id} message={msg} />
+              ))
+            )}
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.loadingText}>Yanıt hazırlanıyor...</Text>
+              </View>
+            )}
+          </ScrollView>
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={(text) => {
-              setInput(text);
-              // Klavye açıldığında otomatik scroll
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }}
-            placeholder="Sorunuzu yazın..."
-            placeholderTextColor="#999"
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!input.trim() || isLoading) && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!input.trim() || isLoading}
-          >
-            <FontAwesome name="send" size={20} color="white" />
-          </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Sorunuzu yazın..."
+              placeholderTextColor="#999"
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!input.trim() || isLoading) && styles.sendButtonDisabled]}
+              onPress={handleSend}
+              disabled={!input.trim() || isLoading}
+            >
+              <FontAwesome name="send" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  return (
+    <>
+      {renderFloatingButton()}
+      {renderExpandedView()}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  header: {
+  floatingButton: {
+    position: 'absolute',
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
     backgroundColor: '#007AFF',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  buttonContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  expandedContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: EXPANDED_HEIGHT,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
+  closeButton: {
+    padding: 8,
   },
   messagesContainer: {
     flex: 1,
@@ -317,14 +386,7 @@ const styles = StyleSheet.create({
   welcomeContainer: {
     alignItems: 'center',
     marginBottom: 24,
-    backgroundColor: '#FFFFFF',
     padding: 24,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
   },
   welcomeTitle: {
     fontSize: 24,
@@ -340,7 +402,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   quickQuestionsContainer: {
-    flex: 1,
+    width: '100%',
+    marginTop: 24,
   },
   quickQuestionsTitle: {
     fontSize: 16,
@@ -429,11 +492,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 8,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 8,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E8E8E8',
-    marginBottom: 0,
   },
   input: {
     flex: 1,
@@ -457,40 +518,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#B0B0B0',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryIcon: {
-    marginRight: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 }); 

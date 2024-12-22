@@ -55,16 +55,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-      <Tabs.Screen
-        name="bilgilendirme"
-        options={{
-          title: 'Cep Ustam',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="info-circle" size={size} color={color} />
-          ),
-        }}
-      />
       <Tabs.Screen
         name="profilim"
         options={{
