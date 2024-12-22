@@ -38,6 +38,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="isletmeler"
+        options={{
+          title: 'İşletmeler',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome name="building" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="acil"
         options={{
           title: 'Acil',
@@ -46,15 +55,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="campaigns"
-        options={{
-          title: 'Kampanyalar',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="gift" size={size} color={color} />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="bilgilendirme"
         options={{
