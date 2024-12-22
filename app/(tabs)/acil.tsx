@@ -19,28 +19,108 @@ import { apiService } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import FilterModal from '../components/FilterModal';
+import BusinessCardDetails, { Business as CardBusiness } from '../../components/BusinessCardDetails';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useNavigation, usePathname } from 'expo-router';
 import { Tabs } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
-type AcilService = {
-  _id: string;
-  acilType: string;
-  acilSehir: string;
-  acilIlce: string;
-  acilNo: string;
-  isOpen: boolean;
-  editor: boolean;
-  yaklasik: string;
+interface RawBusiness {
+  _id: { $oid: string } | string;
+  name: string;
+  category: string | string[];
+  rating: number;
+  reviewCount: number;
+  address: string;
+  phone: string;
+  description: string;
+  images: string[];
+  latitude: number;
+  longitude: number;
+  placeId: string;
+  googleReviews?: Array<{
+    rating: number;
+    text: string;
+    time: { $numberLong: string };
+    authorName: string;
+  }>;
+  lastGoogleSync?: string | Date;
+  website?: string;
+  brands?: string[];
+  city: string;
+  ilce: string;
+  appreviews?: Array<{
+    rating: number;
+    text: string;
+    authorName: string;
+    time: { $numberLong: string };
+  }>;
+  yolYardim: {
+    yardim: boolean;
+    gece: boolean;
+    yaklasik: string;
+    onayli: boolean;
+  };
+  businessHours?: string[];
+  services?: string[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  ownerId?: string;
+  averageRating?: number;
+}
+
+const mapBusinessToCardBusiness = (business: RawBusiness): CardBusiness => {
+  const mongoId = typeof business._id === 'object' && business._id !== null && '$oid' in business._id 
+    ? business._id.$oid 
+    : String(business._id);
+
+  return {
+    id: mongoId,
+    _id: mongoId,
+    ownerId: business.ownerId || 'unknown',
+    name: business.name,
+    category: Array.isArray(business.category) ? business.category : [business.category],
+    rating: business.rating || business.averageRating || 0,
+    reviewCount: business.reviewCount || 0,
+    address: business.address,
+    phone: business.phone,
+    website: business.website,
+    description: business.description,
+    images: business.images || [],
+    latitude: business.latitude,
+    longitude: business.longitude,
+    city: business.city,
+    ilce: business.ilce,
+    brands: business.brands || [],
+    placeId: business.placeId,
+    googleReviews: business.googleReviews?.map(review => ({
+      rating: review.rating,
+      text: review.text,
+      time: review.time ? Number(review.time.$numberLong || review.time) : Date.now(),
+      authorName: review.authorName
+    })) || [],
+    lastGoogleSync: business.lastGoogleSync ? new Date(business.lastGoogleSync).toISOString() : undefined,
+    appreviews: business.appreviews?.map(review => ({
+      rating: review.rating,
+      text: review.text,
+      time: review.time ? String(review.time.$numberLong || review.time) : String(Date.now()),
+      authorName: review.authorName
+    })) || [],
+    businessHours: business.businessHours || [],
+    reviews: [],
+    services: business.services || [],
+    createdAt: business.createdAt ? new Date(business.createdAt).toISOString() : new Date().toISOString(),
+    updatedAt: business.updatedAt ? new Date(business.updatedAt).toISOString() : new Date().toISOString(),
+    averageRating: business.rating || 0
+  };
 };
 
 export default function AcilScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const pathname = usePathname();
-  const [services, setServices] = useState<AcilService[]>([]);
+  const [services, setServices] = useState<RawBusiness[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState<Location.LocationGeocodedAddress | null>(null);
@@ -56,9 +136,10 @@ export default function AcilScreen() {
     categories: []
   });
   const [previousScreen, setPreviousScreen] = useState<string | null>(null);
+  const [selectedBusiness, setSelectedBusiness] = useState<CardBusiness | null>(null);
+  const [isDetailsVisible, setIsDetailsVisible] = useState(false);
 
   useEffect(() => {
-    // Store the previous screen when mounting
     if (pathname !== '/(tabs)/acil') {
       setPreviousScreen(pathname);
     }
@@ -130,7 +211,6 @@ export default function AcilScreen() {
   };
 
   const normalizeCity = (city: string): string => {
-    // Türkçe karakterleri ASCII karşılıklarına dönüştür
     return city
       .replace(/İ/g, 'I')
       .replace(/ı/g, 'i')
@@ -144,7 +224,6 @@ export default function AcilScreen() {
       .replace(/ö/g, 'o')
       .replace(/Ç/g, 'C')
       .replace(/ç/g, 'c')
-      // İlk harfi büyük, diğerleri küçük
       .toLowerCase()
       .replace(/^[a-z]/, letter => letter.toUpperCase());
   };
@@ -161,20 +240,70 @@ export default function AcilScreen() {
 
       console.log('Formatlanmış şehir:', formattedCity);
       
-      const response = await apiService.getAcilServices({
-        sehir: formattedCity,
-        ilce: params.district,
-        kategori: params.categories && params.categories.length > 0 ? params.categories[0] : undefined
+      const rawData = await apiService.getAllBusinesses();
+      const rawBusinesses = (Array.isArray(rawData) ? rawData : []) as unknown as RawBusiness[];
+      
+      const response: { businesses: RawBusiness[] } = { 
+        businesses: rawBusinesses
+          .filter(b => b.yolYardim?.yardim === true)
+          .map(b => {
+            const mongoId = typeof b._id === 'object' && b._id !== null && '$oid' in b._id ? b._id.$oid : String(b._id);
+            
+            // Convert Google reviews
+            const googleReviews = (b.googleReviews || []).map(review => ({
+              rating: review.rating,
+              text: review.text,
+              time: Number(review.time.$numberLong),
+              authorName: review.authorName
+            }));
+
+            // Convert app reviews
+            const appReviews = (b.appreviews || []).map(review => ({
+              rating: review.rating,
+              text: review.text,
+              time: review.time.$numberLong,
+              authorName: review.authorName
+            }));
+            
+            const business: RawBusiness = {
+              _id: mongoId,
+              name: b.name,
+              category: Array.isArray(b.category) ? b.category : [b.category],
+              rating: b.rating,
+              reviewCount: b.reviewCount,
+              address: b.address,
+              phone: b.phone,
+              description: b.description,
+              images: b.images,
+              latitude: b.latitude,
+              longitude: b.longitude,
+              placeId: b.placeId,
+              city: b.city,
+              ilce: b.ilce,
+              lastGoogleSync: b.lastGoogleSync ? new Date(b.lastGoogleSync).toISOString() : undefined,
+              googleReviews,
+              brands: b.brands || [],
+              appreviews: appReviews,
+              businessHours: b.businessHours || [],
+              services: b.services || [],
+              createdAt: b.createdAt ? new Date(b.createdAt).toISOString() : new Date().toISOString(),
+              updatedAt: b.updatedAt ? new Date(b.updatedAt).toISOString() : new Date().toISOString(),
+              yolYardim: b.yolYardim || { yardim: false, gece: false, yaklasik: '', onayli: false },
+              website: b.website,
+              averageRating: b.rating || 0
+            };
+            return business;
+          })
+      };
+      
+      let filteredServices = response.businesses.filter(business => {
+        if (formattedCity && business.city !== formattedCity) return false;
+        if (params.district && business.ilce !== params.district) return false;
+        if (params.categories && params.categories.length > 0) {
+          return params.categories.some(cat => business.category.includes(cat));
+        }
+        return true;
       });
-      
-      let filteredServices = response.services;
-      
-      // If multiple categories are selected, filter the services that match any of the categories
-      if (params.categories && params.categories.length > 1) {
-        filteredServices = filteredServices.filter(service => 
-          params.categories!.includes(service.acilType)
-        );
-      }
       
       setServices(filteredServices);
     } catch (error) {
@@ -192,18 +321,72 @@ export default function AcilScreen() {
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const response = await apiService.getAcilServices({});
-        if (response.filters) {
-          setAvailableCities(response.filters.sehirler || []);
-          setAvailableDistricts(response.filters.ilceler || []);
-          setAvailableCategories(response.filters.kategoriler || []);
-        }
+        const rawData = await apiService.getAllBusinesses();
+        const rawBusinesses = (Array.isArray(rawData) ? rawData : []) as unknown as RawBusiness[];
+        
+        const acilBusinesses = rawBusinesses
+          .filter(b => Array.isArray(b.category) ? b.category.includes('acil') : b.category === 'acil')
+          .map(b => {
+            const mongoId = typeof b._id === 'object' && b._id !== null && '$oid' in b._id ? b._id.$oid : String(b._id);
+            
+            const business: RawBusiness = {
+              _id: mongoId,
+              name: b.name,
+              category: Array.isArray(b.category) ? b.category : [b.category],
+              rating: b.rating,
+              reviewCount: b.reviewCount,
+              address: b.address,
+              phone: b.phone,
+              description: b.description,
+              images: b.images,
+              latitude: b.latitude,
+              longitude: b.longitude,
+              placeId: b.placeId,
+              city: b.city,
+              ilce: b.ilce,
+              lastGoogleSync: b.lastGoogleSync ? new Date(b.lastGoogleSync).toISOString() : undefined,
+              googleReviews: b.googleReviews || [],
+              brands: b.brands || [],
+              appreviews: b.appreviews || [],
+              businessHours: b.businessHours || [],
+              services: b.services || [],
+              createdAt: b.createdAt ? new Date(b.createdAt).toISOString() : new Date().toISOString(),
+              updatedAt: b.updatedAt ? new Date(b.updatedAt).toISOString() : new Date().toISOString(),
+              yolYardim: b.yolYardim || { yardim: false, gece: false, yaklasik: '', onayli: false },
+              website: b.website
+            };
+            return business;
+          });
+        
+        const cities = [...new Set(acilBusinesses.map(b => b.city))];
+        const districts = [...new Set(acilBusinesses.map(b => b.ilce))];
+        const businessTypes = [...new Set(acilBusinesses.flatMap(b => b.category))];
+        
+        setAvailableCities(cities);
+        setAvailableDistricts(districts);
+        setAvailableCategories(businessTypes);
       } catch (error) {
         console.error('Error loading filters:', error);
       }
     };
     loadFilters();
   }, []);
+
+  const getCurrentBusinessHours = (business: RawBusiness): boolean => {
+    if (business.yolYardim.gece) {
+      return true; // 24 saat açık
+    }
+    
+    const now = new Date();
+    const hour = now.getHours();
+    
+    // 08:00 - 20:00 arası açık
+    return hour >= 8 && hour < 20;
+  };
+
+  const getServicePrice = (business: RawBusiness): string => {
+    return business.yolYardim.yaklasik ? `${business.yolYardim.yaklasik}₺` : 'Belirtilmemiş';
+  };
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -256,20 +439,42 @@ export default function AcilScreen() {
     router.navigate('index');
   };
 
-  const renderServiceCard = (service: AcilService) => (
+  const handleCardPress = (business: RawBusiness) => {
+    console.log('Card pressed, raw business:', business);
+    const mappedBusiness = mapBusinessToCardBusiness(business);
+    console.log('Mapped business:', mappedBusiness);
+    setSelectedBusiness(mappedBusiness);
+    setIsDetailsVisible(true);
+  };
+
+  const handleCloseDetails = () => {
+    console.log('Closing details modal');
+    setIsDetailsVisible(false);
+    setSelectedBusiness(null);
+  };
+
+  const renderServiceCard = (business: RawBusiness) => (
     <TouchableOpacity 
-      key={service._id} 
-      style={styles.card}
+      key={business._id.toString()} 
+      style={[
+        styles.card,
+        !getCurrentBusinessHours(business) && styles.closedCard
+      ]}
       activeOpacity={0.95}
+      onPress={() => {
+        console.log('Card TouchableOpacity pressed');
+        handleCardPress(business);
+      }}
     >
       <View style={styles.cardHeader}>
         <View style={styles.serviceTypeContainer}>
-          <View style={[styles.statusIndicator, service.isOpen ? styles.openIndicator : styles.closedIndicator]} />
+          <View style={[styles.statusIndicator, getCurrentBusinessHours(business) ? styles.openIndicator : styles.closedIndicator]} />
           <View>
-            <Text style={styles.serviceType}>{service.acilType}</Text>
+            <Text style={styles.businessName}>{business.name}</Text>
+            <Text style={styles.serviceType}>{business.category[0]}</Text>
           </View>
         </View>
-        {service.editor && (
+        {business.yolYardim.onayli && (
           <View style={styles.verifiedBadge}>
             <FontAwesome name="check-circle" size={14} color="#22C55E" />
             <Text style={styles.verifiedText}>Onaylı</Text>
@@ -280,24 +485,24 @@ export default function AcilScreen() {
       <View style={styles.cardBody}>
         <View style={styles.locationRow}>
           <FontAwesome name="map-marker" size={16} color="#64748B" />
-          <Text style={styles.locationText}>{service.acilIlce}, {service.acilSehir}</Text>
+          <Text style={styles.locationText}>{business.ilce}, {business.city}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>Yaklaşık Ücret</Text>
-            <Text style={styles.priceValue}>{service.yaklasik} ₺</Text>
+            <Text style={styles.priceValue}>{getServicePrice(business)}</Text>
           </View>
           <View style={styles.statusContainer}>
             <Text style={styles.statusLabel}>Durum</Text>
-            <View style={[styles.statusBadge, service.isOpen ? styles.openBadge : styles.closedBadge]}>
+            <View style={[styles.statusBadge, getCurrentBusinessHours(business) ? styles.openBadge : styles.closedBadge]}>
               <FontAwesome 
-                name={service.isOpen ? "clock-o" : "clock-o"} 
+                name="clock-o"
                 size={14} 
-                color={service.isOpen ? "#16A34A" : "#DC2626"} 
+                color={getCurrentBusinessHours(business) ? "#16A34A" : "#DC2626"} 
               />
-              <Text style={[styles.statusValue, service.isOpen ? styles.openText : styles.closedText]}>
-                {service.isOpen ? 'Açık' : 'Kapalı'}
+              <Text style={[styles.statusValue, getCurrentBusinessHours(business) ? styles.openText : styles.closedText]}>
+                {getCurrentBusinessHours(business) ? 'Açık' : 'Kapalı'}
               </Text>
             </View>
           </View>
@@ -306,13 +511,13 @@ export default function AcilScreen() {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.callButton, !service.isOpen && styles.buttonDisabled]}
-          onPress={() => service.isOpen && handleCall(service.acilNo)}
-          disabled={!service.isOpen}
+          style={[styles.actionButton, styles.callButton, !getCurrentBusinessHours(business) && styles.buttonDisabled]}
+          onPress={() => getCurrentBusinessHours(business) && handleCall(business.phone)}
+          disabled={!getCurrentBusinessHours(business)}
         >
           <FontAwesome name="phone" size={20} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>
-            {service.isOpen ? 'Hemen Ara' : 'Şu an Kapalı'}
+            {getCurrentBusinessHours(business) ? 'Hemen Ara' : 'Şu an Kapalı'}
           </Text>
         </TouchableOpacity>
 
@@ -320,10 +525,10 @@ export default function AcilScreen() {
           style={[
             styles.actionButton,
             styles.smsButton,
-            !service.isOpen && styles.buttonDisabled
+            !getCurrentBusinessHours(business) && styles.buttonDisabled
           ]}
-          onPress={() => service.isOpen && handleSMS(service.acilNo)}
-          disabled={!service.isOpen}
+          onPress={() => getCurrentBusinessHours(business) && handleSMS(business.phone)}
+          disabled={!getCurrentBusinessHours(business)}
         >
           <FontAwesome name="commenting" size={20} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Hızlı SMS</Text>
@@ -469,6 +674,14 @@ export default function AcilScreen() {
         isLocationShared={!!userLocation}
         selectedFilters={selectedFilters}
       />
+
+      {selectedBusiness && (
+        <BusinessCardDetails
+          business={selectedBusiness}
+          visible={isDetailsVisible}
+          onClose={handleCloseDetails}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -511,6 +724,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1F5F9',
   },
+  closedCard: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    shadowOpacity: 0.05,
+    opacity: 0.8,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -542,25 +761,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   serviceType: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  businessName: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1A1A1A',
     letterSpacing: 0.5,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  reviewCount: {
-    fontSize: 13,
-    color: '#94A3B8',
   },
   verifiedBadge: {
     flexDirection: 'row',

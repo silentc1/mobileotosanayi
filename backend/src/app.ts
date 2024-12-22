@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import { connectToDatabase } from './config/mongodb';
-import acilRoutes from './routes/acil';
 import authRoutes from './routes/auth';
 import businessRoutes from './routes/businesses';
 import reviewRoutes from './routes/reviews';
@@ -32,7 +31,6 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/acil', acilRoutes);
 app.use('/api/campaigns', campaignRoutes);
 
 // 404 handler

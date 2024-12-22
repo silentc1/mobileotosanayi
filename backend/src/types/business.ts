@@ -19,9 +19,15 @@ export interface Review {
   userId: string;
 }
 
+export interface YolYardim {
+  yardim: boolean;
+  gece: boolean;
+  yaklasik: string;
+  onayli: boolean;
+}
+
 export interface Business {
   _id: string | ObjectId;
-  ownerId: string;
   name: string;
   category: string[];
   rating: number;
@@ -32,9 +38,6 @@ export interface Business {
   images: string[];
   latitude: number;
   longitude: number;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  averageRating: number;
   placeId: string;
   googleReviews: Review[];
   lastGoogleSync: string | Date;
@@ -43,6 +46,9 @@ export interface Business {
   city: string;
   ilce: string;
   appreviews: Review[];
-  businessHours: string[];
-  services: string[];
-} 
+  yolYardim: YolYardim;
+}
+
+export interface CreateBusinessDto extends Omit<Business, '_id'> {}
+
+export interface UpdateBusinessDto extends Partial<Business> {} 

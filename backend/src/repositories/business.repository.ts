@@ -1,114 +1,143 @@
-import { Db, ObjectId, WithId, Document } from 'mongodb';
-import { COLLECTIONS } from '../constants';
-import { Business, Review } from '../types/business';
-import { GooglePlacesService } from '../services/google-places.service';
+import { Db, ObjectId } from 'mongodb';
+import { COLLECTIONS } from '../config/mongodb';
+import { Business, CreateBusinessDto, UpdateBusinessDto } from '../types/business';
 
 export class BusinessRepository {
-  // ... existing code ...
-
-  static async updateFromGooglePlaces(db: Db, businessId: string | ObjectId, placeId: string): Promise<Business> {
+  static async findAll(db: Db): Promise<Business[]> {
     try {
-
-
-      const googlePlacesService = GooglePlacesService.getInstance();
-      const placeDetails = await googlePlacesService.getPlaceDetails(placeId);
-
-      // Convert Google reviews to our Review type
-      const googleReviews: Review[] = placeDetails.reviews.map(review => ({
-        rating: review.rating,
-        text: review.text,
-        time: review.time,
-        authorName: review.authorName,
-        userId: 'google', // Use 'google' as userId for Google reviews
-      }));
-
-      
-
-      const result = await db.collection<Business>(COLLECTIONS.BUSINESSES).findOneAndUpdate(
-        { _id: typeof businessId === 'string' ? new ObjectId(businessId) : businessId },
-        { 
-          $set: {
-            name: placeDetails.name,
-            rating: placeDetails.rating,
-            reviewCount: placeDetails.reviewCount,
-            address: placeDetails.address,
-            phone: placeDetails.phone,
-            website: placeDetails.website,
-            googleReviews,
-            updatedAt: new Date(),
-            lastGoogleSync: new Date(),
-          },
-        },
-        { returnDocument: 'after' }
-      );
-
-      if (!result) {
-        console.error('MongoDB Update Failed:', {
-          businessId,
-          collection: COLLECTIONS.BUSINESSES
-        });
-        throw new Error(`Failed to update business with id ${businessId}`);
-      }
-
-      console.log('=== Update Success ===');
-      console.log('Updated Business:', {
-        id: result._id.toString(),
-        name: result.name,
-        rating: result.rating,
-        reviewCount: result.reviewCount,
-        lastSync: result.lastGoogleSync,
-      });
-
-      return {
-        ...result,
-        _id: result._id.toString(),
-      } as Business;
+      const businesses = await db.collection(COLLECTIONS.BUSINESSES).find({}).toArray();
+      return businesses as Business[];
     } catch (error) {
-      console.error('=== Business Update Error ===');
-      console.error('Error Type:', error instanceof Error ? error.name : typeof error);
-      console.error('Error Message:', error instanceof Error ? error.message : String(error));
-      console.error('Stack Trace:', error instanceof Error ? error.stack : 'No stack trace available');
+      console.error('Error finding businesses:', error);
       throw error;
     }
   }
 
-  static async findBusinessesWithoutGoogleData(db: Db): Promise<Business[]> {
+  static async findById(db: Db, id: string): Promise<Business | null> {
     try {
-      console.log('Searching for businesses without Google data...');
-      
-      // First, let's check all businesses with placeId
-      const allBusinesses = await db.collection(COLLECTIONS.BUSINESSES)
-        .find({ placeId: { $exists: true } })
-        .toArray();
-      
-      console.log(`Found ${allBusinesses.length} businesses with placeId`);
-      
-      // Now filter for those needing sync
-      const businesses = await db.collection(COLLECTIONS.BUSINESSES)
-        .find({
-          placeId: { $exists: true },
-          $or: [
-            { lastGoogleSync: { $exists: false } },
-            { googleReviews: { $exists: false } }
-          ]
-        })
-        .toArray();
-      
-      console.log(`Found ${businesses.length} businesses needing sync`);
-      console.log('Businesses needing sync:', businesses.map(b => ({
-        id: b._id.toString(),
-        name: b.name,
-        placeId: b.placeId,
-        hasLastSync: !!b.lastGoogleSync,
-        hasGoogleReviews: !!b.googleReviews
-      })));
-      
-      return businesses.map(business => ({
-        ...business,
-        _id: business._id.toString(),
-      })) as Business[];
+      const business = await db.collection(COLLECTIONS.BUSINESSES).findOne({ _id: new ObjectId(id) });
+      return business as Business | null;
     } catch (error) {
-      console.error('Error finding businesses without Google data:', error);
+      console.error('Error finding business by id:', error);
+      throw error;
+    }
+  }
+
+  static async findByCategory(db: Db, category: string): Promise<Business[]> {
+    try {
+      const businesses = await db.collection(COLLECTIONS.BUSINESSES).find({ category }).toArray();
+      return businesses as Business[];
+    } catch (error) {
+      console.error('Error finding businesses by category:', error);
+      throw error;
+    }
+  }
+
+  static async create(db: Db, businessData: CreateBusinessDto): Promise<Business> {
+    try {
+      const result = await db.collection(COLLECTIONS.BUSINESSES).insertOne({
+        ...businessData,
+        _id: new ObjectId(),
+        lastGoogleSync: new Date(),
+        googleReviews: [],
+        appreviews: [],
+        yolYardim: businessData.yolYardim || {
+          yardim: false,
+          gece: false,
+          yaklasik: "0",
+          onayli: false
+        }
+      });
+      
+      const newBusiness = await this.findById(db, result.insertedId.toString());
+      if (!newBusiness) throw new Error('Failed to create business');
+      return newBusiness;
+    } catch (error) {
+      console.error('Error creating business:', error);
+      throw error;
+    }
+  }
+
+  static async update(db: Db, id: string, businessData: UpdateBusinessDto): Promise<Business | null> {
+    try {
+      const result = await db.collection(COLLECTIONS.BUSINESSES).findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: businessData },
+        { returnDocument: 'after' }
+      );
+      
+      if (!result || !result.value) {
+        return null;
+      }
+      
+      return result.value as Business;
+    } catch (error) {
+      console.error('Error updating business:', error);
+      throw error;
+    }
+  }
+
+  static async delete(db: Db, id: string): Promise<boolean> {
+    try {
+      const result = await db.collection(COLLECTIONS.BUSINESSES).deleteOne({ _id: new ObjectId(id) });
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error('Error deleting business:', error);
+      throw error;
+    }
+  }
+
+  static async search(db: Db, query: string): Promise<Business[]> {
+    try {
+      const businesses = await db.collection(COLLECTIONS.BUSINESSES).find({
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { category: { $regex: query, $options: 'i' } },
+          { address: { $regex: query, $options: 'i' } },
+          { brands: { $regex: query, $options: 'i' } },
+          { city: { $regex: query, $options: 'i' } },
+          { ilce: { $regex: query, $options: 'i' } }
+        ],
+      }).toArray();
+      return businesses as Business[];
+    } catch (error) {
+      console.error('Error searching businesses:', error);
+      throw error;
+    }
+  }
+
+  static async findByBrand(db: Db, brand: string): Promise<Business[]> {
+    try {
+      const businesses = await db.collection(COLLECTIONS.BUSINESSES).find({ brands: brand }).toArray();
+      return businesses as Business[];
+    } catch (error) {
+      console.error('Error finding businesses by brand:', error);
+      throw error;
+    }
+  }
+
+  static async findByLocation(db: Db, city: string, ilce?: string): Promise<Business[]> {
+    try {
+      const query: any = { city };
+      if (ilce) query.ilce = ilce;
+      
+      const businesses = await db.collection(COLLECTIONS.BUSINESSES).find(query).toArray();
+      return businesses as Business[];
+    } catch (error) {
+      console.error('Error finding businesses by location:', error);
+      throw error;
+    }
+  }
+
+  static async findWithYolYardim(db: Db, gece?: boolean): Promise<Business[]> {
+    try {
+      const query: any = { 'yolYardim.yardim': true };
+      if (typeof gece === 'boolean') query['yolYardim.gece'] = gece;
+      
+      const businesses = await db.collection(COLLECTIONS.BUSINESSES).find(query).toArray();
+      return businesses as Business[];
+    } catch (error) {
+      console.error('Error finding businesses with yol yardim:', error);
       throw error;
     }
   }

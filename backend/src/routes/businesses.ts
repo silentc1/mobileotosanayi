@@ -3,15 +3,14 @@ import { Db, ObjectId } from 'mongodb';
 import { COLLECTIONS } from '../config/mongodb';
 import { Business } from '../types/business';
 import { BusinessRepository } from '../repositories/business.repository';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
 // Helper function to convert MongoDB document to Business type
 function convertToBusiness(doc: any): Business {
-  const converted = {
-    id: doc._id.toString(),
+  return {
     _id: doc._id.toString(),
-    ownerId: doc.ownerId || '',
     name: doc.name || '',
     category: Array.isArray(doc.category) ? doc.category : [],
     rating: doc.rating || 0,
@@ -22,56 +21,29 @@ function convertToBusiness(doc: any): Business {
     images: doc.images || [],
     latitude: doc.latitude || 0,
     longitude: doc.longitude || 0,
-    createdAt: doc.createdAt?.toString() || new Date().toISOString(),
-    updatedAt: doc.updatedAt?.toString() || new Date().toISOString(),
-    averageRating: doc.averageRating || 0,
     placeId: doc.placeId || '',
     googleReviews: doc.googleReviews || [],
-    lastGoogleSync: doc.lastGoogleSync?.toString() || '',
+    lastGoogleSync: doc.lastGoogleSync || new Date(),
     website: doc.website || '',
     brands: doc.brands || [],
     city: doc.city || '',
     ilce: doc.ilce || '',
     appreviews: doc.appreviews || [],
-    businessHours: doc.businessHours || [],
-    services: doc.services || [],
-  };
-
-  return converted;
-}
-
-// Helper function to validate ObjectId
-function isValidObjectId(id: string): boolean {
-  try {
-    if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      new ObjectId(id);
-      return true;
+    yolYardim: doc.yolYardim || {
+      yardim: false,
+      gece: false,
+      yaklasik: "0",
+      onayli: false
     }
-    return false;
-  } catch (error) {
-    return false;
-  }
+  };
 }
 
 // Get all businesses
 router.get('/', async (req, res) => {
   try {
-    console.log('GET /businesses - Fetching all businesses');
     const db: Db = req.app.locals.db;
-    
-    console.log('Database connection:', !!db); // Check if db is available
-    
-    const businesses = await db.collection(COLLECTIONS.BUSINESSES)
-      .find()
-      .sort({ rating: -1 })
-      .toArray();
-
-    console.log(`Found ${businesses.length} businesses`);
-    
-    const convertedBusinesses = businesses.map(convertToBusiness);
-    console.log('First business:', convertedBusinesses[0] || 'No businesses found');
-    
-    res.json(convertedBusinesses);
+    const businesses = await BusinessRepository.findAll(db);
+    res.json(businesses.map(convertToBusiness));
   } catch (error) {
     console.error('Error getting businesses:', error);
     res.status(500).json({ error: 'Failed to get businesses' });
@@ -83,12 +55,7 @@ router.get('/category/:category', async (req, res) => {
   try {
     const { category } = req.params;
     const db: Db = req.app.locals.db;
-    
-    const businesses = await db.collection(COLLECTIONS.BUSINESSES)
-      .find({ category })
-      .sort({ rating: -1 })
-      .toArray();
-
+    const businesses = await BusinessRepository.findByCategory(db, category);
     res.json(businesses.map(convertToBusiness));
   } catch (error) {
     console.error('Error getting businesses by category:', error);
@@ -96,19 +63,56 @@ router.get('/category/:category', async (req, res) => {
   }
 });
 
-// Get a single business by ID
+// Get businesses by brand
+router.get('/brand/:brand', async (req, res) => {
+  try {
+    const { brand } = req.params;
+    const db: Db = req.app.locals.db;
+    const businesses = await BusinessRepository.findByBrand(db, brand);
+    res.json(businesses.map(convertToBusiness));
+  } catch (error) {
+    console.error('Error getting businesses by brand:', error);
+    res.status(500).json({ error: 'Failed to get businesses' });
+  }
+});
+
+// Get businesses by location
+router.get('/location/:city/:ilce?', async (req, res) => {
+  try {
+    const { city, ilce } = req.params;
+    const db: Db = req.app.locals.db;
+    const businesses = await BusinessRepository.findByLocation(db, city, ilce);
+    res.json(businesses.map(convertToBusiness));
+  } catch (error) {
+    console.error('Error getting businesses by location:', error);
+    res.status(500).json({ error: 'Failed to get businesses' });
+  }
+});
+
+// Get businesses with yol yardim
+router.get('/yol-yardim', async (req, res) => {
+  try {
+    const { gece } = req.query;
+    const db: Db = req.app.locals.db;
+    const businesses = await BusinessRepository.findWithYolYardim(db, gece === 'true');
+    res.json(businesses.map(convertToBusiness));
+  } catch (error) {
+    console.error('Error getting businesses with yol yardim:', error);
+    res.status(500).json({ error: 'Failed to get businesses' });
+  }
+});
+
+// Get single business
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({ error: 'Invalid business ID format' });
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid business ID' });
     }
 
     const db: Db = req.app.locals.db;
-    const business = await db.collection(COLLECTIONS.BUSINESSES)
-      .findOne({ _id: new ObjectId(id) });
-
+    const business = await BusinessRepository.findById(db, id);
+    
     if (!business) {
       return res.status(404).json({ error: 'Business not found' });
     }
@@ -120,119 +124,72 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Sync business with Google Places data
-router.post('/:id/sync-google-places', async (req, res) => {
+// Create business
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const db: Db = req.app.locals.db;
+    const business = await BusinessRepository.create(db, req.body);
+    res.status(201).json(convertToBusiness(business));
+  } catch (error) {
+    console.error('Error creating business:', error);
+    res.status(500).json({ error: 'Failed to create business' });
+  }
+});
+
+// Update business
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({ error: 'Invalid business ID format' });
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid business ID' });
     }
 
     const db: Db = req.app.locals.db;
-    const business = await db.collection(COLLECTIONS.BUSINESSES)
-      .findOne({ _id: new ObjectId(id) });
-
+    const business = await BusinessRepository.update(db, id, req.body);
+    
     if (!business) {
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    if (!business.placeId) {
-      return res.status(400).json({ error: 'Business does not have a Google Place ID' });
-    }
-
-    const updatedBusiness = await BusinessRepository.updateFromGooglePlaces(db, id, business.placeId);
-    res.json(updatedBusiness);
+    res.json(convertToBusiness(business));
   } catch (error) {
-    console.error('Error syncing business with Google Places:', error);
-    res.status(500).json({ 
-      error: 'Failed to sync business with Google Places',
-      details: error instanceof Error ? error.message : String(error)
-    });
+    console.error('Error updating business:', error);
+    res.status(500).json({ error: 'Failed to update business' });
   }
 });
 
-// Sync all businesses that need Google Places data
-router.post('/sync-all-google-places', async (req, res) => {
-  try {
-    const db: Db = req.app.locals.db;
-    const businesses = await BusinessRepository.findBusinessesWithoutGoogleData(db);
-    
-    console.log('Found businesses to sync:', businesses.map(b => ({ id: b._id, placeId: b.placeId })));
-    
-    const results = await Promise.allSettled(
-      businesses.map(async business => {
-        try {
-          if (!business.placeId) {
-            throw new Error(`Business ${business._id} has no placeId`);
-          }
-          if (!isValidObjectId(business._id.toString())) {
-            throw new Error(`Invalid business ID format: ${business._id}`);
-          }
-          console.log(`Starting sync for business: ${business._id} with placeId: ${business.placeId}`);
-          const result = await BusinessRepository.updateFromGooglePlaces(db, business._id, business.placeId);
-          console.log(`Successfully synced business: ${business._id}`);
-          return result;
-        } catch (error) {
-          console.error(`Failed to sync business ${business._id}:`, error);
-          throw error;
-        }
-      })
-    );
-
-    const failedResults = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
-    const failedErrors = failedResults.map(r => r.reason);
-    
-    const summary = {
-      total: businesses.length,
-      succeeded: results.filter(r => r.status === 'fulfilled').length,
-      failed: failedResults.length,
-      errors: failedErrors.map(e => e.message || String(e))
-    };
-
-    console.log('Sync summary:', summary);
-    res.json(summary);
-  } catch (error) {
-    console.error('Error syncing all businesses with Google Places:', error);
-    res.status(500).json({ 
-      error: 'Failed to sync businesses with Google Places',
-      details: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-
-// Force sync a specific business with Google Places data
-router.post('/:id/force-sync-google-places', async (req, res) => {
+// Delete business
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({ error: 'Invalid business ID format' });
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid business ID' });
     }
 
     const db: Db = req.app.locals.db;
-    const business = await db.collection(COLLECTIONS.BUSINESSES)
-      .findOne({ _id: new ObjectId(id) });
-
-    if (!business) {
+    const success = await BusinessRepository.delete(db, id);
+    
+    if (!success) {
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    if (!business.placeId) {
-      return res.status(400).json({ error: 'Business does not have a Google Place ID' });
-    }
-
-    console.log(`Force syncing business ${id} with placeId ${business.placeId}`);
-    const updatedBusiness = await BusinessRepository.updateFromGooglePlaces(db, id, business.placeId);
-    console.log(`Successfully force synced business ${id}`);
-    
-    res.json(updatedBusiness);
+    res.status(204).send();
   } catch (error) {
-    console.error('Error force syncing business with Google Places:', error);
-    res.status(500).json({ 
-      error: 'Failed to force sync business with Google Places',
-      details: error instanceof Error ? error.message : String(error)
-    });
+    console.error('Error deleting business:', error);
+    res.status(500).json({ error: 'Failed to delete business' });
+  }
+});
+
+// Search businesses
+router.get('/search/:query', async (req, res) => {
+  try {
+    const { query } = req.params;
+    const db: Db = req.app.locals.db;
+    const businesses = await BusinessRepository.search(db, query);
+    res.json(businesses.map(convertToBusiness));
+  } catch (error) {
+    console.error('Error searching businesses:', error);
+    res.status(500).json({ error: 'Failed to search businesses' });
   }
 });
 
