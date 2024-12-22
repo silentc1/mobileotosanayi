@@ -9,6 +9,8 @@ import {
   Image,
   Dimensions,
   Platform,
+  ViewStyle,
+  FlatList,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -18,54 +20,82 @@ export interface Campaign {
   _id: string;
   title: string;
   description: string;
-  image: string;
-  business: string;
-  brands: string[];
-  discount: string;
-  validUntil: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehicleYear: number;
+  originalPrice: number;
+  discountedPrice: number;
+  discountPercentage: number;
+  images: string[];
+  terms: string;
+  features: string[];
+  stockCount: number;
+  dealerLocations: string[];
+  remainingDays?: number;
+  formattedStartDate?: string;
+  formattedEndDate?: string;
+  savingsAmount?: number;
 }
 
 interface CampaignButtonProps {
   campaign: Campaign;
+  style?: ViewStyle;
+  onClose?: () => void;
 }
 
-export default function CampaignButton({ campaign }: CampaignButtonProps) {
+export default function CampaignButton({ campaign, style, onClose }: CampaignButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const formattedDate = new Date(campaign.validUntil).toLocaleDateString('tr-TR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const handleClose = () => {
+    setIsModalVisible(false);
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => setIsModalVisible(true)}
-        activeOpacity={0.9}
-      >
-        <View style={styles.buttonContent}>
-          <FontAwesome name="tag" size={20} color="#FFFFFF" />
-          <Text style={styles.buttonText}>Kampanya</Text>
-        </View>
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>{campaign.discount}</Text>
-        </View>
-      </TouchableOpacity>
-
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
+      {!onClose ? (
+        <TouchableOpacity
+          style={[styles.campaignButton, style]}
+          onPress={() => setIsModalVisible(true)}
+          activeOpacity={0.9}
+        >
+          <View style={styles.buttonContent}>
+            <FontAwesome name="tag" size={20} color="#FFFFFF" />
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonText} numberOfLines={1}>
+                {campaign.vehicleYear} {campaign.vehicleBrand} {campaign.vehicleModel}
+              </Text>
+              <Text style={styles.remainingDays}>
+                {campaign.remainingDays} gün kaldı
+              </Text>
+            </View>
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>%{campaign.discountPercentage}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      ) : (
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={() => setIsModalVisible(false)}
+                onPress={handleClose}
               >
                 <FontAwesome name="chevron-down" size={16} color="#666" />
               </TouchableOpacity>
@@ -74,56 +104,124 @@ export default function CampaignButton({ campaign }: CampaignButtonProps) {
             </View>
 
             <ScrollView style={styles.modalScroll}>
-              <Image
-                source={{ uri: campaign.image }}
-                style={styles.campaignImage}
-                resizeMode="cover"
-              />
+              {/* Image Slider */}
+              <View style={styles.imageSliderContainer}>
+                <FlatList
+                  data={campaign.images}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(e) => {
+                    const newIndex = Math.round(
+                      e.nativeEvent.contentOffset.x / width
+                    );
+                    setCurrentImageIndex(newIndex);
+                  }}
+                  renderItem={({ item }) => (
+                    <Image
+                      source={{ uri: item }}
+                      style={styles.campaignImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  keyExtractor={(_, index) => index.toString()}
+                />
+                <View style={styles.paginationDots}>
+                  {campaign.images.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
+                        index === currentImageIndex && styles.activeDot,
+                      ]}
+                    />
+                  ))}
+                </View>
+              </View>
 
               <View style={styles.contentContainer}>
-                <View style={styles.headerContainer}>
-                  <View style={styles.businessBadge}>
-                    <FontAwesome name="building" size={14} color="#1976d2" style={styles.businessIcon} />
-                    <Text style={styles.businessText}>{campaign.business}</Text>
-                  </View>
-                  <View style={styles.discountBadgeLarge}>
-                    <FontAwesome name="tag" size={14} color="#FFFFFF" style={styles.discountIcon} />
-                    <Text style={styles.discountTextLarge}>{campaign.discount}</Text>
+                {/* Vehicle Info */}
+                <View style={styles.vehicleInfo}>
+                  <Text style={styles.title}>
+                    {campaign.vehicleYear} {campaign.vehicleBrand} {campaign.vehicleModel}
+                  </Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.originalPrice}>
+                      {formatPrice(campaign.originalPrice)}
+                    </Text>
+                    <Text style={styles.discountedPrice}>
+                      {formatPrice(campaign.discountedPrice)}
+                    </Text>
+                    <View style={styles.savingsBadge}>
+                      <Text style={styles.savingsText}>
+                        {formatPrice(campaign.savingsAmount || 0)} tasarruf
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
-                <Text style={styles.title}>{campaign.title}</Text>
+                {/* Campaign Details */}
                 <Text style={styles.description}>{campaign.description}</Text>
 
-                <View style={styles.brandsContainer}>
-                  {campaign.brands.map((brand, index) => (
-                    <View key={index} style={styles.brandBadge}>
-                      <FontAwesome name="check" size={12} color="#666" style={styles.brandIcon} />
-                      <Text style={styles.brandText}>{brand}</Text>
+                {/* Features */}
+                <View style={styles.featuresContainer}>
+                  <Text style={styles.sectionTitle}>Kampanya Özellikleri</Text>
+                  {campaign.features.map((feature, index) => (
+                    <View key={index} style={styles.featureItem}>
+                      <FontAwesome name="check-circle" size={16} color="#4CAF50" />
+                      <Text style={styles.featureText}>{feature}</Text>
                     </View>
                   ))}
                 </View>
 
+                {/* Dealer Locations */}
+                <View style={styles.dealersContainer}>
+                  <Text style={styles.sectionTitle}>Yetkili Bayiler</Text>
+                  {campaign.dealerLocations.map((dealer, index) => (
+                    <View key={index} style={styles.dealerItem}>
+                      <FontAwesome name="map-marker" size={16} color="#1976D2" />
+                      <Text style={styles.dealerText}>{dealer}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Stock Info */}
+                <View style={styles.stockContainer}>
+                  <FontAwesome name="info-circle" size={16} color="#FF9800" />
+                  <Text style={styles.stockText}>
+                    Stokta {campaign.stockCount} adet kaldı
+                  </Text>
+                </View>
+
+                {/* Terms */}
+                <View style={styles.termsContainer}>
+                  <Text style={styles.termsTitle}>Kampanya Koşulları</Text>
+                  <Text style={styles.termsText}>{campaign.terms}</Text>
+                </View>
+
+                {/* Campaign Dates */}
                 <View style={styles.footer}>
                   <View style={styles.dateContainer}>
-                    <FontAwesome name="calendar" size={14} color="#666" style={styles.dateIcon} />
-                    <Text style={styles.dateText}>Son Geçerlilik: {formattedDate}</Text>
+                    <FontAwesome name="calendar" size={14} color="#666" />
+                    <Text style={styles.dateText}>
+                      {campaign.formattedStartDate} - {campaign.formattedEndDate}
+                    </Text>
                   </View>
+                  <Text style={styles.remainingDaysLarge}>
+                    {campaign.remainingDays} gün kaldı
+                  </Text>
                 </View>
               </View>
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  floatingButton: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 90 : 70,
-    right: 20,
+  campaignButton: {
     backgroundColor: '#FF3B30',
     borderRadius: 28,
     paddingVertical: 12,
@@ -138,23 +236,34 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
+    minWidth: 280,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flex: 1,
+  },
+  buttonTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
+  remainingDays: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    opacity: 0.8,
+    marginTop: 2,
+  },
   discountBadge: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 8,
   },
   discountText: {
     color: '#FF3B30',
@@ -195,51 +304,36 @@ const styles = StyleSheet.create({
   modalScroll: {
     maxHeight: '90%',
   },
+  imageSliderContainer: {
+    height: 250,
+    position: 'relative',
+  },
   campaignImage: {
-    width: '100%',
+    width: width,
     height: 250,
     backgroundColor: '#F0F0F0',
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     padding: 16,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  vehicleInfo: {
     marginBottom: 16,
-  },
-  businessBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  businessIcon: {
-    marginRight: 6,
-  },
-  businessText: {
-    color: '#1976D2',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  discountBadgeLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  discountIcon: {
-    marginRight: 6,
-  },
-  discountTextLarge: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
   },
   title: {
     fontSize: 24,
@@ -247,50 +341,120 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 8,
   },
+  priceContainer: {
+    marginTop: 8,
+  },
+  originalPrice: {
+    fontSize: 16,
+    color: '#666666',
+    textDecorationLine: 'line-through',
+  },
+  discountedPrice: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF3B30',
+    marginTop: 4,
+  },
+  savingsBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  savingsText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   description: {
     fontSize: 16,
     color: '#666666',
     lineHeight: 24,
     marginBottom: 16,
   },
-  brandsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  featuresContainer: {
     marginBottom: 16,
   },
-  brandBadge: {
+  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    marginBottom: 8,
   },
-  brandIcon: {
-    marginRight: 4,
-  },
-  brandText: {
+  featureText: {
+    fontSize: 14,
     color: '#666666',
-    fontSize: 13,
-    fontWeight: '500',
+    marginLeft: 8,
+  },
+  dealersContainer: {
+    marginBottom: 16,
+  },
+  dealerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dealerText: {
+    fontSize: 14,
+    color: '#666666',
+    marginLeft: 8,
+  },
+  stockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  stockText: {
+    fontSize: 14,
+    color: '#FF9800',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  termsContainer: {
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  termsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#666666',
+    lineHeight: 18,
   },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#E8E8E8',
+    paddingTop: 16,
   },
   dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  dateIcon: {
-    marginRight: 6,
+    gap: 8,
   },
   dateText: {
-    color: '#666666',
     fontSize: 14,
+    color: '#666666',
+  },
+  remainingDaysLarge: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF3B30',
+    marginTop: 8,
   },
 }); 
