@@ -23,6 +23,7 @@ import BusinessCardDetails, { Business as CardBusiness } from '../../components/
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useNavigation, usePathname } from 'expo-router';
 import { Tabs } from 'expo-router';
+import FloatingAssistant from '../../components/FloatingAssistant';
 
 const { width } = Dimensions.get('window');
 
@@ -682,6 +683,7 @@ export default function AcilScreen() {
           onClose={handleCloseDetails}
         />
       )}
+      <FloatingAssistant />
     </SafeAreaView>
   );
 }
