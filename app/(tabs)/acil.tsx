@@ -12,12 +12,16 @@ import {
   Dimensions,
   StatusBar,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import FilterModal from '../components/FilterModal';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, useNavigation, usePathname } from 'expo-router';
+import { Tabs } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +37,9 @@ type AcilService = {
 };
 
 export default function AcilScreen() {
+  const router = useRouter();
+  const navigation = useNavigation();
+  const pathname = usePathname();
   const [services, setServices] = useState<AcilService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -41,7 +48,35 @@ export default function AcilScreen() {
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedFilters, setSelectedFilters] = useState<{
+    city?: string;
+    district?: string;
+    categories: string[];
+  }>({
+    categories: []
+  });
+  const [previousScreen, setPreviousScreen] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Store the previous screen when mounting
+    if (pathname !== '/(tabs)/acil') {
+      setPreviousScreen(pathname);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    const backAction = () => {
+      router.navigate('index');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []);
 
   const requestLocationPermission = async () => {
     try {
@@ -114,7 +149,7 @@ export default function AcilScreen() {
       .replace(/^[a-z]/, letter => letter.toUpperCase());
   };
 
-  const loadServices = async (params: { city?: string; district?: string; category?: string }) => {
+  const loadServices = async (params: { city?: string; district?: string; categories?: string[] }) => {
     try {
       setIsLoading(true);
       console.log('Filtreleme parametreleri:', params);
@@ -129,13 +164,19 @@ export default function AcilScreen() {
       const response = await apiService.getAcilServices({
         sehir: formattedCity,
         ilce: params.district,
-        kategori: params.category
+        kategori: params.categories && params.categories.length > 0 ? params.categories[0] : undefined
       });
-      console.log('Bulunan servisler:', response.services.length);
-      setServices(response.services);
-      if (params.category) {
-        setSelectedCategory(params.category);
+      
+      let filteredServices = response.services;
+      
+      // If multiple categories are selected, filter the services that match any of the categories
+      if (params.categories && params.categories.length > 1) {
+        filteredServices = filteredServices.filter(service => 
+          params.categories!.includes(service.acilType)
+        );
       }
+      
+      setServices(filteredServices);
     } catch (error) {
       console.error('Error loading services:', error);
     } finally {
@@ -170,13 +211,13 @@ export default function AcilScreen() {
       loadServices({
         city: userLocation.region,
         district: userLocation.city || undefined,
-        category: selectedCategory || undefined
+        categories: selectedFilters.categories || undefined
       });
     } else if (userLocation?.subregion) {
       loadServices({
         city: userLocation.subregion,
         district: userLocation.city || undefined,
-        category: selectedCategory || undefined
+        categories: selectedFilters.categories || undefined
       });
     } else {
       loadServices({});
@@ -187,8 +228,32 @@ export default function AcilScreen() {
     Linking.openURL(`tel:${phoneNumber}`);
   };
 
-  const handleFilterApply = (filters: { city?: string; district?: string; category?: string }) => {
+  const handleSMS = (phoneNumber: string) => {
+    if (!userLocation) {
+      Alert.alert(
+        'Konum Gerekli',
+        'Lütfen Konum Bilgilerinizi Yukarıdan Bizimle Paylaşın',
+        [{ text: 'Tamam' }]
+      );
+      return;
+    }
+
+    const locationText = `${userLocation.street || ''} ${userLocation.name || ''} ${userLocation.district || ''} ${userLocation.city || ''} ${userLocation.region || userLocation.subregion || ''}`.trim().replace(/\s+/g, ' ');
+
+    const message = encodeURIComponent(
+      `Yolda kaldım yardıma ihtiyacım var.\nKonumum: ${locationText}`
+    );
+    
+    Linking.openURL(`sms:${phoneNumber}?body=${message}`);
+  };
+
+  const handleFilterApply = (filters: { city?: string; district?: string; categories: string[] }) => {
+    setSelectedFilters(filters);
     loadServices(filters);
+  };
+
+  const handleBackPress = () => {
+    router.navigate('index');
   };
 
   const renderServiceCard = (service: AcilService) => (
@@ -196,16 +261,17 @@ export default function AcilScreen() {
       key={service._id} 
       style={styles.card}
       activeOpacity={0.95}
-      onPress={() => handleCall(service.acilNo)}
     >
       <View style={styles.cardHeader}>
         <View style={styles.serviceTypeContainer}>
           <View style={[styles.statusIndicator, service.isOpen ? styles.openIndicator : styles.closedIndicator]} />
-          <Text style={styles.serviceType}>{service.acilType}</Text>
+          <View>
+            <Text style={styles.serviceType}>{service.acilType}</Text>
+          </View>
         </View>
         {service.editor && (
           <View style={styles.verifiedBadge}>
-            <FontAwesome name="check-circle" size={12} color="#4F46E5" />
+            <FontAwesome name="check-circle" size={14} color="#22C55E" />
             <Text style={styles.verifiedText}>Onaylı</Text>
           </View>
         )}
@@ -213,7 +279,7 @@ export default function AcilScreen() {
 
       <View style={styles.cardBody}>
         <View style={styles.locationRow}>
-          <FontAwesome name="map-marker" size={16} color="#666" />
+          <FontAwesome name="map-marker" size={16} color="#64748B" />
           <Text style={styles.locationText}>{service.acilIlce}, {service.acilSehir}</Text>
         </View>
 
@@ -224,23 +290,45 @@ export default function AcilScreen() {
           </View>
           <View style={styles.statusContainer}>
             <Text style={styles.statusLabel}>Durum</Text>
-            <Text style={[styles.statusValue, service.isOpen ? styles.openText : styles.closedText]}>
-              {service.isOpen ? 'Açık' : 'Kapalı'}
-            </Text>
+            <View style={[styles.statusBadge, service.isOpen ? styles.openBadge : styles.closedBadge]}>
+              <FontAwesome 
+                name={service.isOpen ? "clock-o" : "clock-o"} 
+                size={14} 
+                color={service.isOpen ? "#16A34A" : "#DC2626"} 
+              />
+              <Text style={[styles.statusValue, service.isOpen ? styles.openText : styles.closedText]}>
+                {service.isOpen ? 'Açık' : 'Kapalı'}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.callButton, !service.isOpen && styles.callButtonDisabled]}
-        onPress={() => service.isOpen && handleCall(service.acilNo)}
-        disabled={!service.isOpen}
-      >
-        <FontAwesome name="phone" size={18} color="#fff" style={styles.callIcon} />
-        <Text style={styles.callButtonText}>
-          {service.isOpen ? 'Hemen Ara' : 'Şu an Kapalı'}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.callButton, !service.isOpen && styles.buttonDisabled]}
+          onPress={() => service.isOpen && handleCall(service.acilNo)}
+          disabled={!service.isOpen}
+        >
+          <FontAwesome name="phone" size={20} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>
+            {service.isOpen ? 'Hemen Ara' : 'Şu an Kapalı'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            styles.smsButton,
+            !service.isOpen && styles.buttonDisabled
+          ]}
+          onPress={() => service.isOpen && handleSMS(service.acilNo)}
+          disabled={!service.isOpen}
+        >
+          <FontAwesome name="commenting" size={20} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Hızlı SMS</Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 
@@ -254,51 +342,96 @@ export default function AcilScreen() {
 
   return (
     <SafeAreaView style={[styles.container, styles.safeArea]} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>7/24 Acil Yol Yardım</Text>
-      </View>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#312E81"
+      />
+      <LinearGradient
+        colors={['#312E81', '#4338CA', '#4F46E5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBackground}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerIconContainer}>
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+              style={styles.iconGradient}
+            >
+              <FontAwesome name="car" size={28} color="#fff" style={styles.headerMainIcon} />
+            </LinearGradient>
+          </View>
+          <View style={styles.headerTextContainer}>
+            <Text style={[styles.headerTitle, styles.lightText]}>Acil Yol Yardım</Text>
+            <Text style={[styles.headerSubtitle, styles.lightText]}>
+              Size en yakın yol yardım servisleri {'\n'}7/24 hizmetinizde
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       <View style={styles.filterContainer}>
-        <TouchableOpacity 
-          style={styles.locationButton}
-          onPress={requestLocationPermission}
-        >
-          <FontAwesome 
-            name={userLocation ? "map-marker" : "location-arrow"} 
-            size={16} 
-            color="#4F46E5" 
-          />
-          <Text style={styles.locationButtonText}>
-            {userLocation ? (
-              `${userLocation.region || userLocation.subregion || ''} ${userLocation.city ? `(${userLocation.city})` : ''}`
-            ) : 'Konumumu Paylaş'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.filterButtonsRow}>
+          <TouchableOpacity 
+            style={[
+              styles.filterActionButton,
+              styles.locationActionButton,
+              userLocation && styles.locationActionButtonActive
+            ]}
+            onPress={requestLocationPermission}
+          >
+            <FontAwesome 
+              name={userLocation ? "map-marker" : "location-arrow"} 
+              size={20} 
+              color={userLocation ? "#4F46E5" : "#64748B"} 
+            />
+            <Text style={[
+              styles.filterActionButtonText,
+              userLocation && styles.activeFilterText
+            ]}>
+              {userLocation ? (
+                `${userLocation.region || userLocation.subregion || ''} ${userLocation.city ? `(${userLocation.city})` : ''}`
+              ) : 'Konumumu Paylaş'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedCategory && styles.activeFilterButton]}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <FontAwesome name="filter" size={16} color="#4F46E5" />
-          <Text style={[styles.filterButtonText, selectedCategory && styles.activeFilterText]}>
-            {selectedCategory || 'Filtreleme Yap'}
-          </Text>
-          {selectedCategory && (
-            <TouchableOpacity
-              style={styles.clearFilterButton}
-              onPress={() => {
-                setSelectedCategory('');
-                loadServices({
-                  city: userLocation?.region || userLocation?.subregion || undefined,
-                  district: userLocation?.city || undefined
-                });
-              }}
-            >
-              <FontAwesome name="times" size={14} color="#4F46E5" />
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.filterActionButton,
+              selectedFilters.categories.length > 0 && styles.activeFilterButton
+            ]}
+            onPress={() => setShowFilterModal(true)}
+          >
+            <FontAwesome 
+              name="sliders" 
+              size={20} 
+              color={selectedFilters.categories.length > 0 ? "#4F46E5" : "#64748B"} 
+            />
+            <Text style={[
+              styles.filterActionButtonText,
+              selectedFilters.categories.length > 0 && styles.activeFilterText
+            ]}>
+              {selectedFilters.categories.length > 0 
+                ? `${selectedFilters.categories.length} Kategori Seçili` 
+                : 'Filtreleme Yap'}
+            </Text>
+            {selectedFilters.categories.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearFilterButton}
+                onPress={() => {
+                  setSelectedFilters(prev => ({ ...prev, categories: [] }));
+                  loadServices({
+                    city: userLocation?.region || userLocation?.subregion || undefined,
+                    district: userLocation?.city || undefined,
+                    categories: []
+                  });
+                }}
+              >
+                <FontAwesome name="times" size={16} color="#4F46E5" />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -334,6 +467,7 @@ export default function AcilScreen() {
         initialCity={userLocation?.region || userLocation?.subregion || undefined}
         initialDistrict={userLocation?.city || undefined}
         isLocationShared={!!userLocation}
+        selectedFilters={selectedFilters}
       />
     </SafeAreaView>
   );
@@ -345,7 +479,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   safeArea: {
-    backgroundColor: '#fff',
+    backgroundColor: '#4F46E5',
   },
   loadingContainer: {
     flex: 1,
@@ -369,17 +503,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    marginTop: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 5,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   serviceTypeContainer: {
     flexDirection: 'row',
@@ -387,34 +526,93 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   openIndicator: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#22C55E',
   },
   closedIndicator: {
     backgroundColor: '#EF4444',
   },
   serviceType: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1A1A1A',
+    letterSpacing: 0.5,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  ratingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  reviewCount: {
+    fontSize: 13,
+    color: '#94A3B8',
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#EEF2FF',
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
   },
   verifiedText: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#16A34A',
+  },
+  statusContainer: {
+    alignItems: 'flex-end',
+  },
+  statusLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 4,
     fontWeight: '500',
-    color: '#4F46E5',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  openBadge: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#16A34A',
+  },
+  closedBadge: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DC2626',
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  openText: {
+    color: '#16A34A',
+  },
+  closedText: {
+    color: '#DC2626',
   },
   cardBody: {
     gap: 16,
@@ -423,68 +621,86 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   locationText: {
     fontSize: 15,
-    color: '#666',
+    color: '#475569',
+    flex: 1,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 8,
   },
   priceContainer: {
     flex: 1,
   },
   priceLabel: {
     fontSize: 13,
-    color: '#666',
+    color: '#64748B',
     marginBottom: 4,
+    fontWeight: '500',
   },
   priceValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1A1A1A',
+    letterSpacing: 0.5,
   },
-  statusContainer: {
-    alignItems: 'flex-end',
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
   },
-  statusLabel: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 4,
-  },
-  statusValue: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  openText: {
-    color: '#10B981',
-  },
-  closedText: {
-    color: '#EF4444',
-  },
-  callButton: {
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4F46E5',
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 14,
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  callButtonDisabled: {
-    backgroundColor: '#E5E5EA',
+  callButton: {
+    backgroundColor: '#22C55E',
+    borderColor: '#16A34A',
   },
-  callIcon: {
-    marginRight: 4,
+  smsButton: {
+    backgroundColor: '#6366F1',
+    borderColor: '#4F46E5',
   },
-  callButtonText: {
+  buttonDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -505,68 +721,108 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  header: {
-    paddingVertical: 12,
+  headerBackground: {
+    paddingVertical: 20,
     paddingHorizontal: 20,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E8E8E8',
-    backgroundColor: '#fff',
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingTop: 12,
+    width: '100%',
+  },
+  headerIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerMainIcon: {
+    opacity: 0.95,
+  },
+  headerTextContainer: {
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  headerSubtitle: {
     fontSize: 16,
-    fontWeight: '400',
-    color: '#1A1A1A',
     textAlign: 'center',
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F5F3FF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E8E8E8',
-    minHeight: 48,
-  },
-  locationButtonText: {
-    fontSize: 15,
-    color: '#4F46E5',
+    lineHeight: 22,
     fontWeight: '500',
-    textAlign: 'center',
-    flexShrink: 1,
+    opacity: 0.9,
+    paddingHorizontal: 20,
+  },
+  lightText: {
+    color: '#FFFFFF',
   },
   filterContainer: {
     backgroundColor: '#fff',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E8E8E8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    padding: 12,
   },
-  filterButton: {
+  filterButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 4,
+  },
+  filterActionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F3FF',
-    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
     paddingHorizontal: 16,
     gap: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E8E8E8',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minHeight: 52,
   },
-  filterButtonText: {
+  locationActionButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+  },
+  locationActionButtonActive: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#4F46E5',
+  },
+  filterActionButtonText: {
     fontSize: 15,
-    color: '#4F46E5',
-    fontWeight: '500',
+    color: '#64748B',
+    fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   activeFilterButton: {
+    backgroundColor: '#F0F9FF',
     borderColor: '#4F46E5',
-    backgroundColor: '#F5F3FF',
   },
   activeFilterText: {
     color: '#4F46E5',
   },
   clearFilterButton: {
-    padding: 4,
+    padding: 6,
     marginLeft: 4,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
   },
 });

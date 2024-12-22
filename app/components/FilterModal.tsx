@@ -14,13 +14,18 @@ import { FontAwesome } from '@expo/vector-icons';
 type FilterModalProps = {
   isVisible: boolean;
   onClose: () => void;
-  onApply: (filters: { city?: string; district?: string; category?: string }) => void;
+  onApply: (filters: { city?: string; district?: string; categories: string[] }) => void;
   cities: string[];
   districts: string[];
   categories: string[];
   initialCity?: string;
   initialDistrict?: string;
   isLocationShared?: boolean;
+  selectedFilters: {
+    city?: string;
+    district?: string;
+    categories: string[];
+  };
 };
 
 export default function FilterModal({
@@ -33,10 +38,11 @@ export default function FilterModal({
   initialCity,
   initialDistrict,
   isLocationShared = false,
+  selectedFilters,
 }: FilterModalProps) {
-  const [selectedCity, setSelectedCity] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>(selectedFilters.city || '');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>(selectedFilters.district || '');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(selectedFilters.categories || []);
   const [citySearch, setCitySearch] = useState('');
   const [districtSearch, setDistrictSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
@@ -45,6 +51,12 @@ export default function FilterModal({
     if (initialCity) setSelectedCity(initialCity);
     if (initialDistrict) setSelectedDistrict(initialDistrict);
   }, [initialCity, initialDistrict]);
+
+  useEffect(() => {
+    if (selectedFilters.city) setSelectedCity(selectedFilters.city);
+    if (selectedFilters.district) setSelectedDistrict(selectedFilters.district);
+    setSelectedCategories(selectedFilters.categories || []);
+  }, [selectedFilters]);
 
   const filteredCities = cities.filter(city =>
     city.toLowerCase().includes(citySearch.toLowerCase())
@@ -62,7 +74,7 @@ export default function FilterModal({
     onApply({
       city: selectedCity,
       district: selectedDistrict,
-      category: selectedCategory
+      categories: selectedCategories
     });
     onClose();
   };
@@ -72,10 +84,20 @@ export default function FilterModal({
       setSelectedCity('');
       setSelectedDistrict('');
     }
-    setSelectedCategory('');
+    setSelectedCategories([]);
     setCitySearch('');
     setDistrictSearch('');
     setCategorySearch('');
+  };
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
+      } else {
+        return [...prev, category];
+      }
+    });
   };
 
   return (
@@ -178,32 +200,45 @@ export default function FilterModal({
 
             {/* Kategori Seçimi */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Kategori Seçin</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Kategori ara..."
-                value={categorySearch}
-                onChangeText={setCategorySearch}
-                placeholderTextColor="#999"
-              />
-              <ScrollView style={styles.optionsList} nestedScrollEnabled>
+              <View style={styles.sectionTitleContainer}>
+                <FontAwesome name="tags" size={18} color="#4F46E5" />
+                <Text style={styles.sectionTitle}>Kategori Seçin</Text>
+                {selectedCategories.length > 0 && (
+                  <Text style={styles.selectedCount}>
+                    ({selectedCategories.length} seçili)
+                  </Text>
+                )}
+              </View>
+              <View style={styles.searchContainer}>
+                <FontAwesome name="search" size={16} color="#94A3B8" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Kategori ara..."
+                  value={categorySearch}
+                  onChangeText={setCategorySearch}
+                  placeholderTextColor="#94A3B8"
+                />
+              </View>
+              <ScrollView style={styles.optionsList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                 {filteredCategories.map((category) => (
                   <TouchableOpacity
                     key={category}
                     style={[
                       styles.optionItem,
-                      selectedCategory === category && styles.selectedOption
+                      selectedCategories.includes(category) && styles.selectedOption
                     ]}
-                    onPress={() => setSelectedCategory(category)}
+                    onPress={() => toggleCategory(category)}
                   >
                     <Text style={[
                       styles.optionText,
-                      selectedCategory === category && styles.selectedOptionText
+                      selectedCategories.includes(category) && styles.selectedOptionText
                     ]}>
                       {category}
                     </Text>
-                    {selectedCategory === category && (
-                      <FontAwesome name="check" size={16} color="#4F46E5" />
+                    {selectedCategories.includes(category) && (
+                      <View style={styles.checkmarkContainer}>
+                        <FontAwesome name="check" size={14} color="#fff" />
+                      </View>
                     )}
                   </TouchableOpacity>
                 ))}
@@ -214,10 +249,10 @@ export default function FilterModal({
           <TouchableOpacity
             style={[
               styles.applyButton,
-              (!selectedCategory && (!selectedCity || isLocationShared)) && styles.applyButtonDisabled
+              (!selectedCategories.length && (!selectedCity || isLocationShared)) && styles.applyButtonDisabled
             ]}
             onPress={handleApply}
-            disabled={!selectedCategory && (!selectedCity || isLocationShared)}
+            disabled={!selectedCategories.length && (!selectedCity || isLocationShared)}
           >
             <Text style={styles.applyButtonText}>
               Uygula
@@ -324,5 +359,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  selectedCount: {
+    fontSize: 14,
+    color: '#4F46E5',
+    fontWeight: '600',
+    marginLeft: 8,
   },
 }); 
