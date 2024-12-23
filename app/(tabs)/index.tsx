@@ -9,6 +9,7 @@ import CampaignButton from '../../components/CampaignButton';
 import BusinessCard from '../../components/BusinessCard';
 import BusinessCardDetails from '../../components/BusinessCardDetails';
 import { Business } from '../../backend/src/types/business';
+import FloatingAssistant from '../../components/FloatingAssistant';
 
 interface Campaign {
   _id: string;
@@ -511,6 +512,9 @@ export default function LandingScreen() {
             </Pressable>
           </Modal>
         )}
+
+        {/* Add FloatingAssistant */}
+        <FloatingAssistant />
       </SafeAreaView>
     </>
   );
