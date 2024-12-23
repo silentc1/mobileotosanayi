@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import BusinessCardDetails from './BusinessCardDetails';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const DEFAULT_IMAGE = 'https://via.placeholder.com/400x200?text=No+Image';
 
@@ -251,84 +253,84 @@ export default function BusinessCard({
   }, [business]);
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.9}
-        onPress={handlePress}
-      >
-        <View style={styles.categoryBadge}>
-          <FontAwesome name="tag" size={14} color="#000" style={styles.categoryIcon} />
-          <Text style={styles.categoryText}>
-            {Array.isArray(business.category) 
-              ? business.category.join(', ')
-              : business.category}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.favoriteButton}
-          onPress={handleFavoritePress}
-          disabled={isLoading}
-        >
-          <FontAwesome
-            name={localIsFavorite ? 'heart' : 'heart-o'}
-            size={24}
-            color={localIsFavorite ? '#FF0000' : '#000'}
-          />
-        </TouchableOpacity>
-
-        <Image
+    <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.9}>
+      <View style={styles.card}>
+        <ImageBackground
           source={imageSource}
-          style={styles.image}
-          resizeMode="cover"
-          onError={() => setImageError(true)}
-        />
+          style={styles.backgroundImage}
+          imageStyle={styles.backgroundImageStyle}
+        >
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.9)']}
+            style={styles.gradient}
+          >
+            <TouchableOpacity 
+              style={styles.favoriteButton}
+              onPress={handleFavoritePress}
+              disabled={isLoading}
+            >
+              <FontAwesome
+                name={localIsFavorite ? 'heart' : 'heart-o'}
+                size={22}
+                color={localIsFavorite ? '#FF3B30' : '#FFFFFF'}
+              />
+            </TouchableOpacity>
 
-        <View style={styles.infoContainer}>
-          <Text style={styles.businessName} numberOfLines={1}>
-            {business.name}
-          </Text>
+            <View style={styles.imageContent}>
+              <View style={styles.header}>
+                <Text style={styles.businessName} numberOfLines={2}>
+                  {business.name}
+                </Text>
+                {business.category && business.category.length > 0 && (
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryText}>
+                      {business.category[0]}
+                    </Text>
+                  </View>
+                )}
+              </View>
 
-          <View style={styles.ratingRow}>
-            <View style={styles.starsContainer}>
-              {renderStars(business.rating || 0)}
-              <Text style={styles.ratingNumber}>
-                {business.rating ? business.rating.toFixed(1) : '0.0'}
-              </Text>
-            </View>
-            <Text style={styles.reviewCount}>({business.reviewCount || 0})</Text>
-            <View style={styles.googleBadge}>
-              <FontAwesome name="google" size={16} color="#4285F4" />
-            </View>
-          </View>
+              <View style={styles.imageFeatures}>
+                <View style={styles.ratingRow}>
+                  <View style={styles.starsContainer}>
+                    {renderStars(business.rating || business.averageRating || 0)}
+                    <Text style={styles.ratingNumber}>
+                      {business.rating ? business.rating.toFixed(1) : '0.0'}
+                    </Text>
+                  </View>
+                  <Text style={styles.reviewCount}>({business.reviewCount || 0} değerlendirme)</Text>
+                </View>
 
-          {(business.city || business.ilce) && (
-            <View style={styles.locationRow}>
-              <FontAwesome name="map-marker" size={16} color="#666" style={styles.locationIcon} />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {[business.ilce, business.city].filter(Boolean).join(', ')}
-              </Text>
-            </View>
-          )}
-
-          {Array.isArray(business.brands) && business.brands.length > 0 && (
-            <View style={styles.brandsRow}>
-              <FontAwesome name="building" size={14} color="#666" style={styles.brandIcon} />
-              <View style={styles.brandsContainer}>
-                {business.brands.map((brand, index) => (
-                  <Text key={brand} style={styles.brandText}>
-                    {brand}
-                    {index < business.brands.length - 1 && (
-                      <Text style={styles.bulletPoint}> • </Text>
-                    )}
+                <View style={styles.locationRow}>
+                  <FontAwesome name="map-marker" size={16} color="#FFFFFF" style={styles.locationIcon} />
+                  <Text style={styles.locationText} numberOfLines={2}>
+                    {[business.ilce, business.city].filter(Boolean).join(', ')}
                   </Text>
-                ))}
+                </View>
+
+                {Array.isArray(business.brands) && business.brands.length > 0 && (
+                  <View style={styles.brandsRow}>
+                    <FontAwesome name="building" size={14} color="#FFFFFF" style={styles.brandIcon} />
+                    <View style={styles.brandsContainer}>
+                      {business.brands.slice(0, 3).map((brand, index) => (
+                        <Text key={brand} style={styles.brandText}>
+                          {brand}
+                          {index < Math.min(business.brands.length, 3) - 1 && (
+                            <Text style={styles.bulletPoint}>•</Text>
+                          )}
+                        </Text>
+                      ))}
+                      {business.brands.length > 3 && (
+                        <Text style={styles.brandText}>+{business.brands.length - 3}</Text>
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
-          )}
-        </View>
-      </TouchableOpacity>
+          </LinearGradient>
+        </ImageBackground>
+      </View>
 
       <BusinessCardDetails
         business={mapBusinessToDetailsType(business)}
@@ -337,108 +339,86 @@ export default function BusinessCard({
         onFavoritePress={handleFavoritePress}
         isFavorite={localIsFavorite}
       />
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    paddingHorizontal: 16,
-    marginVertical: 8,
+    marginVertical: 4,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    height: 180,
+    borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    resizeMode: 'cover',
+  },
+  gradient: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  imageContent: {
+    gap: 12,
+  },
+  header: {
+    marginBottom: 8,
+  },
+  businessName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   categoryBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    zIndex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoryIcon: {
-    marginRight: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   categoryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
   },
   favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 1,
-    backgroundColor: '#fff',
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 20,
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    zIndex: 1,
   },
-  image: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#f0f0f0',
-  },
-  infoContainer: {
-    padding: 16,
-  },
-  businessName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: '#f8f9fa',
-    padding: 8,
-    borderRadius: 8,
-  },
-  locationIcon: {
-    marginRight: 6,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
+  imageFeatures: {
+    gap: 8,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: '#f8f9fa',
-    padding: 8,
-    borderRadius: 8,
   },
   starsContainer: {
     flexDirection: 'row',
@@ -448,42 +428,51 @@ const styles = StyleSheet.create({
   star: {
     marginRight: 2,
   },
+  ratingNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 6,
+  },
   reviewCount: {
     fontSize: 14,
-    color: '#666',
-    marginRight: 8,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  googleBadge: {
-    marginLeft: 2,
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  locationIcon: {
+    marginRight: 8,
+    marginTop: 2,
+  },
+  locationText: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    flex: 1,
+    lineHeight: 20,
   },
   brandsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#f8f9fa',
-    padding: 8,
-    borderRadius: 8,
   },
   brandIcon: {
-    marginRight: 6,
+    marginRight: 8,
     marginTop: 2,
   },
   brandsContainer: {
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
   },
   brandText: {
     fontSize: 14,
-    color: '#666',
+    color: '#FFFFFF',
+    marginRight: 4,
   },
   bulletPoint: {
-    color: '#666',
+    color: 'rgba(255, 255, 255, 0.6)',
     marginHorizontal: 4,
-  },
-  ratingNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginLeft: 4,
   },
 }); 
