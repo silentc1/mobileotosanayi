@@ -7,7 +7,7 @@ import { Campaign } from '../components/CampaignButton';
 // Get the server URL from environment variables or use a fallback
 const API_URL = __DEV__ 
   ? Platform.select({
-      ios: 'http://localhost:3001/api',
+      ios: 'http://192.168.1.5:3001/api',
       android: 'http://10.0.2.2:3001/api',
       default: 'http://localhost:3001/api',
     })
