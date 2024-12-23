@@ -1,39 +1,61 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Platform, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+  const tabBarHeight = Platform.OS === 'ios' ? 95 : 75;
+  
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarStyle: Platform.select({
-          ios: {
-            backgroundColor: 'white',
-            borderTopWidth: 1,
-            borderTopColor: '#E8E8E8',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 0,
+          borderWidth: 0,
+          elevation: 0,
+          height: tabBarHeight,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 12,
+          paddingTop: 12,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          shadowColor: 'transparent',
+          shadowOffset: {
+            width: 0,
+            height: 0,
           },
-          android: {
-            backgroundColor: 'white',
-            borderTopWidth: 1,
-            borderTopColor: '#E8E8E8',
-            elevation: 8,
-          },
-        }),
+          shadowOpacity: 0,
+          shadowRadius: 0,
+        },
+        tabBarActiveTintColor: '#4A55A2',
+        tabBarInactiveTintColor: '#94A3B8',
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          marginTop: 4,
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Ana Sayfa',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="home" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: 48,
+              height: 36,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+              borderRadius: 12,
+            }}>
+              <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
+            </View>
           ),
         }}
       />
@@ -41,8 +63,17 @@ export default function TabLayout() {
         name="isletmeler"
         options={{
           title: 'İşletmeler',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="building" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: 48,
+              height: 36,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+              borderRadius: 12,
+            }}>
+              <Ionicons name={focused ? "business" : "business-outline"} size={26} color={color} />
+            </View>
           ),
         }}
       />
@@ -50,8 +81,39 @@ export default function TabLayout() {
         name="acil"
         options={{
           title: 'Acil',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="exclamation-circle" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: 48,
+              height: 36,
+              backgroundColor: focused ? '#FF3B3015' : 'transparent',
+              borderRadius: 12,
+            }}>
+              <Ionicons 
+                name={focused ? "warning" : "warning-outline"} 
+                size={26} 
+                color={focused ? "#FF3B30" : "#94A3B8"} 
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="kampanyalar"
+        options={{
+          title: 'Kampanyalar',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: 48,
+              height: 36,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+              borderRadius: 12,
+            }}>
+              <Ionicons name={focused ? "pricetag" : "pricetag-outline"} size={26} color={color} />
+            </View>
           ),
         }}
       />
@@ -59,8 +121,17 @@ export default function TabLayout() {
         name="profilim"
         options={{
           title: 'Profilim',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="user" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: 48,
+              height: 36,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+              borderRadius: 12,
+            }}>
+              <Ionicons name={focused ? "person" : "person-outline"} size={26} color={color} />
+            </View>
           ),
         }}
       />

@@ -758,9 +758,17 @@ const styles = StyleSheet.create({
   },
   openIndicator: {
     backgroundColor: '#22C55E',
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   closedIndicator: {
     backgroundColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   serviceType: {
     fontSize: 14,
@@ -889,12 +897,12 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   callButton: {
-    backgroundColor: '#22C55E',
-    borderColor: '#16A34A',
+    backgroundColor: '#4F46E5',
+    borderColor: '#4338CA',
   },
   smsButton: {
-    backgroundColor: '#6366F1',
-    borderColor: '#4F46E5',
+    backgroundColor: '#312E81',
+    borderColor: '#312E81',
   },
   buttonDisabled: {
     backgroundColor: '#F1F5F9',
@@ -1013,7 +1021,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   locationActionButtonActive: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#EEF2FF',
     borderColor: '#4F46E5',
   },
   filterActionButtonText: {
@@ -1024,7 +1032,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   activeFilterButton: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#EEF2FF',
     borderColor: '#4F46E5',
   },
   activeFilterText: {

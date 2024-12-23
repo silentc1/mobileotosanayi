@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,10 +11,14 @@ import {
   Platform,
   ViewStyle,
   FlatList,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const MINIMUM_MODAL_HEIGHT = height * 0.7; // Start at 70% of screen height
+const MAXIMUM_MODAL_HEIGHT = height * 0.95; // Max 95% of screen height
 
 export interface Campaign {
   _id: string;
@@ -49,12 +53,51 @@ interface CampaignButtonProps {
 export default function CampaignButton({ campaign, style, onClose }: CampaignButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const modalHeight = useRef(new Animated.Value(MINIMUM_MODAL_HEIGHT)).current;
+  const lastGestureDy = useRef(MINIMUM_MODAL_HEIGHT);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        lastGestureDy.current = MINIMUM_MODAL_HEIGHT;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const newHeight = lastGestureDy.current - gestureState.dy;
+        if (newHeight >= MINIMUM_MODAL_HEIGHT && newHeight <= MAXIMUM_MODAL_HEIGHT) {
+          modalHeight.setValue(newHeight);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // If dragged down significantly, close the modal
+        if (gestureState.dy > 50) {
+          handleClose();
+          return;
+        }
+
+        // Snap back to minimum height
+        Animated.spring(modalHeight, {
+          toValue: MINIMUM_MODAL_HEIGHT,
+          useNativeDriver: false,
+          bounciness: 4,
+          speed: 12,
+        }).start();
+      },
+    })
+  ).current;
 
   const handleClose = () => {
-    setIsModalVisible(false);
-    if (onClose) {
-      onClose();
-    }
+    Animated.timing(modalHeight, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start(() => {
+      setIsModalVisible(false);
+      if (onClose) {
+        onClose();
+      }
+    });
   };
 
   const formatPrice = (price: number) => {
@@ -81,7 +124,7 @@ export default function CampaignButton({ campaign, style, onClose }: CampaignBut
                 {campaign.vehicleYear} {campaign.vehicleBrand} {campaign.vehicleModel}
               </Text>
               <Text style={styles.remainingDays}>
-                {campaign.remainingDays} gün kaldı
+                {campaign.remainingDays} g��n kaldı
               </Text>
             </View>
             <View style={styles.discountBadge}>
@@ -91,19 +134,28 @@ export default function CampaignButton({ campaign, style, onClose }: CampaignBut
         </TouchableOpacity>
       ) : (
         <View style={styles.modalBackground}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-              >
-                <FontAwesome name="chevron-down" size={16} color="#666" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Kampanya Detayları</Text>
-              <View style={styles.closeButton} />
+          <Animated.View style={[styles.modalContent, { height: modalHeight }]}>
+            <View {...panResponder.panHandlers} style={styles.dragHandleArea}>
+              <View style={styles.dragHandle}>
+                <View style={styles.dragIndicator} />
+              </View>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={handleClose}
+                >
+                  <FontAwesome name="chevron-down" size={16} color="#666" />
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>Kampanya Detayları</Text>
+                <View style={styles.closeButton} />
+              </View>
             </View>
 
-            <ScrollView style={styles.modalScroll}>
+            <ScrollView 
+              style={styles.modalScroll}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Image Slider */}
               <View style={styles.imageSliderContainer}>
                 <FlatList
@@ -213,7 +265,7 @@ export default function CampaignButton({ campaign, style, onClose }: CampaignBut
                 </View>
               </View>
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       )}
     </>
@@ -279,7 +331,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '90%',
+    overflow: 'hidden',
+  },
+  dragHandleArea: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  dragHandle: {
+    width: '100%',
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -302,7 +372,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalScroll: {
-    maxHeight: '90%',
+    flex: 1,
   },
   imageSliderContainer: {
     height: 250,
