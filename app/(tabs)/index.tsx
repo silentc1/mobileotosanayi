@@ -169,466 +169,329 @@ export default function LandingScreen() {
   }, [currentIndex]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#0066CC' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#0066CC" />
-      <View style={{ flex: 1 }}>
-        <View style={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '25%',
-          backgroundColor: '#0066CC',
-          zIndex: 0
-        }} />
-        <ScrollView
-        
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FFFFFF']} progressBackgroundColor="#0066CC" />
-          }
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerTop}>
-              <View style={styles.headerTitleContainer}>
-                <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Ototus</Text>
-                <View style={styles.betaBadge}>
-                  <LinearGradient
-                    colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.betaBadgeGradient}
+    <>
+      <View style={{ backgroundColor: '#0066CC', height: StatusBar.currentHeight }} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#0066CC"
+        translucent={true}
+      />
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0066CC' }}>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 50 }}
+            bounces={false}
+          >
+            {/* Header */}
+            <View style={[styles.header, { backgroundColor: '#0066CC' }]}>
+              <View style={styles.headerTop}>
+                <View style={styles.headerTitleContainer}>
+                  <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Ototus</Text>
+                  <View style={styles.betaBadge}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.betaBadgeGradient}
+                    >
+                      <Text style={[styles.betaText, { color: '#FFFFFF' }]}>BETA</Text>
+                    </LinearGradient>
+                  </View>
+                </View>
+                <View style={styles.headerActions}>
+                  <TouchableOpacity 
+                    style={[styles.notificationButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+                    onPress={() => router.push('/notifications')}
                   >
-                    <Text style={[styles.betaText, { color: '#FFFFFF' }]}>BETA</Text>
-                  </LinearGradient>
+                    <FontAwesome name="bell" size={22} color="#FFFFFF" />
+                    {notifications > 0 && (
+                      <View style={[styles.notificationBadge, { backgroundColor: '#FF3B30', borderColor: '#0066CC' }]}>
+                        <Text style={styles.notificationCount}>{notifications}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.profileButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+                    onPress={() => router.push('/profilim')}
+                  >
+                    <FontAwesome name="user-circle" size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={styles.headerActions}>
-                <TouchableOpacity 
-                  style={[styles.notificationButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
-                  onPress={() => router.push('/notifications')}
+            </View>
+
+            {/* Divider */}
+            <View style={{ 
+              height: 1, 
+              backgroundColor: 'rgba(0, 0, 0, 0.1)', 
+              marginHorizontal: 12,
+              marginBottom: 12 
+            }} />
+
+            {/* Content Container */}
+            <View style={{ backgroundColor: '#FFFFFF', flex: 1 }}>
+              {/* Promotion Banner */}
+              <View style={styles.promotionBanner}>
+                <ImageBackground
+                  source={{ uri: 'https://img.freepik.com/premium-vector/auto-repair-service-center-promotion-facebook-cover-banner-template_252779-475.jpg' }}
+                  style={styles.bannerImage}
+                  resizeMode="cover"
                 >
-                  <FontAwesome name="bell" size={22} color="#FFFFFF" />
-                  {notifications > 0 && (
-                    <View style={[styles.notificationBadge, { backgroundColor: '#FF3B30', borderColor: '#0066CC' }]}>
-                      <Text style={styles.notificationCount}>{notifications}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.profileButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
-                  onPress={() => router.push('/profilim')}
-                >
-                  <FontAwesome name="user-circle" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0)']}
+                    style={styles.bannerGradient}
+                  />
+                </ImageBackground>
               </View>
-            </View>
 
-            <View style={styles.welcomeContainer}>
-              <Text style={[styles.welcomeTitle, { color: '#FFFFFF' }]}>Hoş Geldiniz! 👋</Text>
-              <Text style={[styles.welcomeText, { color: 'rgba(255, 255, 255, 0.9)' }]}>
-                Aracınız için en iyi hizmet ve fırsatlar burada
-              </Text>
-            </View>
-          </View>
-
-          {/* Content Container */}
-          <View style={{ backgroundColor: '#FFFFFF', flex: 1 }}>
-            {/* Full Width Banner */}
-            <View style={styles.fullWidthBanner}>
-              <ImageBackground
-                source={{ uri: recommendedBusinesses[0]?.images[0] }}
-                style={styles.bannerImage}
-                resizeMode="cover"
-              >
-                <LinearGradient
-                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
-                  style={styles.bannerGradient}
-                >
-                  <Text style={styles.bannerTitle}>Profesyonel Servis Ağı</Text>
-                  <Text style={styles.bannerSubtitle}>
-                    Aracınız için en iyi hizmet noktaları
-                  </Text>
-                </LinearGradient>
-              </ImageBackground>
-            </View>
-
-            {/* Services Section */}
-            <View style={styles.servicesSection}>
-              <Text style={styles.servicesSectionTitle}>Hizmetlerimiz</Text>
+              {/* Quick Actions */}
+              <Text style={styles.servicesSectionTitle}>Hızlı İşlemler</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{paddingRight: 16, gap: 6 }}
+                contentContainerStyle={[styles.quickActionsContainer, { paddingRight: 24 }]}
               >
                 {/* Acil Yardım */}
                 <TouchableOpacity 
-                  style={{
-                    width: SCREEN_WIDTH * 0.25,
-                    height: 90,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                  }}
+                  style={styles.quickActionButton}
                   onPress={() => router.push('/acil')}
                 >
-                  <ImageBackground
-                    source={{ uri: 'https://img.freepik.com/free-vector/roadside-assistance-emergency-car-towing-service-flat-design_1150-51079.jpg' }}
-                    style={{ width: '100%', height: '100%' }}
-                    imageStyle={{ borderRadius: 12 }}
+                  <LinearGradient
+                    colors={['#FFE5E5', '#FFF0F0']}
+                    style={styles.quickActionIcon}
                   >
-                    <LinearGradient
-                      colors={['transparent', 'rgba(255, 59, 48, 0.95)']}
-                      style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 8,
-                      }}
-                    >
-                      <View style={{ alignItems: 'center', gap: 4 }}>
-                        <View style={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          padding: 6,
-                          borderRadius: 8,
-                        }}>
-                          <FontAwesome name="ambulance" size={16} color="#FFFFFF" />
-                        </View>
-                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
-                          Acil Yardım
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
+                    <FontAwesome name="ambulance" size={24} color="#FF3B30" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionText} numberOfLines={2}>Acil Yardım</Text>
                 </TouchableOpacity>
 
                 {/* Cep Ustam */}
                 <TouchableOpacity 
-                  style={{
-                    width: SCREEN_WIDTH * 0.25,
-                    height: 90,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                  }}
+                  style={styles.quickActionButton}
                   onPress={() => router.push('/cep-ustam')}
                 >
-                  <ImageBackground
-                    source={{ uri: 'https://img.freepik.com/free-vector/ai-powered-chatbot-abstract-concept-illustration_335657-3738.jpg' }}
-                    style={{ width: '100%', height: '100%' }}
-                    imageStyle={{ borderRadius: 12 }}
+                  <LinearGradient
+                    colors={['#E3F2FF', '#F0F8FF']}
+                    style={styles.quickActionIcon}
                   >
-                    <LinearGradient
-                      colors={['transparent', 'rgba(0, 122, 255, 0.95)']}
-                      style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 8,
-                      }}
-                    >
-                      <View style={{ alignItems: 'center', gap: 4 }}>
-                        <View style={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          padding: 6,
-                          borderRadius: 8,
-                        }}>
-                          <FontAwesome name="wrench" size={16} color="#FFFFFF" />
-                        </View>
-                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
-                          Cep Ustam
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
+                    <FontAwesome name="wrench" size={24} color="#007AFF" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionText} numberOfLines={2}>Cep Ustam</Text>
                 </TouchableOpacity>
 
                 {/* İşletmeler */}
                 <TouchableOpacity 
-                  style={{
-                    width: SCREEN_WIDTH * 0.25,
-                    height: 90,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                  }}
+                  style={styles.quickActionButton}
                   onPress={() => router.push('/isletmeler')}
                 >
-                  <ImageBackground
-                    source={{ uri: 'https://img.freepik.com/free-vector/car-repair-maintenance-service-flat-illustration_88138-1280.jpg' }}
-                    style={{ width: '100%', height: '100%' }}
-                    imageStyle={{ borderRadius: 12 }}
+                  <LinearGradient
+                    colors={['#E3FFF1', '#F0FFF7']}
+                    style={styles.quickActionIcon}
                   >
-                    <LinearGradient
-                      colors={['transparent', 'rgba(52, 199, 89, 0.95)']}
-                      style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 8,
-                      }}
-                    >
-                      <View style={{ alignItems: 'center', gap: 4 }}>
-                        <View style={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          padding: 6,
-                          borderRadius: 8,
-                        }}>
-                          <FontAwesome name="building" size={16} color="#FFFFFF" />
-                        </View>
-                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
-                          İşletmeler
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
+                    <FontAwesome name="building" size={24} color="#34C759" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionText} numberOfLines={2}>İşletmeler</Text>
                 </TouchableOpacity>
 
                 {/* Kampanyalar */}
                 <TouchableOpacity 
-                  style={{
-                    width: SCREEN_WIDTH * 0.25,
-                    height: 90,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                  }}
+                  style={styles.quickActionButton}
                   onPress={() => setShowCampaignsModal(true)}
                 >
-                  <ImageBackground
-                    source={{ uri: 'https://img.freepik.com/free-vector/modern-sale-banner-with-text-space-geometric-shapes_1017-13726.jpg' }}
-                    style={{ width: '100%', height: '100%' }}
-                    imageStyle={{ borderRadius: 12 }}
+                  <LinearGradient
+                    colors={['#FFF4E5', '#FFF8F0']}
+                    style={styles.quickActionIcon}
                   >
-                    <LinearGradient
-                      colors={['transparent', 'rgba(255, 149, 0, 0.95)']}
-                      style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 8,
-                      }}
-                    >
-                      <View style={{ alignItems: 'center', gap: 4 }}>
-                        <View style={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          padding: 6,
-                          borderRadius: 8,
-                        }}>
-                          <FontAwesome name="tag" size={16} color="#FFFFFF" />
-                        </View>
-                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
-                          Kampanyalar
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
+                    <FontAwesome name="tag" size={24} color="#FF9500" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionText} numberOfLines={2}>Kampanyalar</Text>
                 </TouchableOpacity>
 
                 {/* Profilim */}
                 <TouchableOpacity 
-                  style={{
-                    width: SCREEN_WIDTH * 0.25,
-                    height: 90,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    marginRight: 16
-                  }}
+                  style={styles.quickActionButton}
                   onPress={() => router.push('/profilim')}
                 >
-                  <ImageBackground
-                    source={{ uri: 'https://img.freepik.com/free-vector/abstract-geometric-pattern-background_1319-242.jpg' }}
-                    style={{ width: '100%', height: '100%' }}
-                    imageStyle={{ borderRadius: 12 }}
+                  <LinearGradient
+                    colors={['#F0F0FF', '#F7F7FF']}
+                    style={styles.quickActionIcon}
                   >
-                    <LinearGradient
-                      colors={['transparent', 'rgba(88, 86, 214, 0.95)']}
-                      style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 8,
-                      }}
-                    >
-                      <View style={{ alignItems: 'center', gap: 4 }}>
-                        <View style={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          padding: 6,
-                          borderRadius: 8,
-                        }}>
-                          <FontAwesome name="user" size={16} color="#FFFFFF" />
-                        </View>
-                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
-                          Profilim
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
+                    <FontAwesome name="user" size={24} color="#5856D6" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionText} numberOfLines={2}>Profilim</Text>
                 </TouchableOpacity>
               </ScrollView>
-            </View>
 
-            {/* Rest of the content with white background */}
-            <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 16 }}>
-              {/* Recommended Businesses Section */}
-              <View style={[styles.sectionWrapper, { backgroundColor: '#FFFFFF' }]}>
-                <View style={styles.sectionHeaderMain}>
-                  <View style={styles.sectionTitleWrapper}>
-                    <Text style={styles.sectionTitle}>Önerilen İşletmeler</Text>
-                    <Text style={styles.sectionSubtitle}>
-                      Aracınız için <Text style={styles.sectionHighlight}>profesyonel servis</Text> ve{' '}
-                      <Text style={styles.sectionHighlight}>kaliteli hizmet</Text> sunan, müşteri memnuniyeti yüksek işletmeler
-                    </Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={[styles.viewAllButton]}
-                    onPress={() => router.push('/isletmeler')}
-                  >
-                    <Text style={styles.viewAllText}>Tümünü Gör</Text>
-                    <FontAwesome name="angle-right" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  ref={recommendedListRef}
-                  data={recommendedBusinesses}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  pagingEnabled
-                  bounces={false}
-                  snapToInterval={SCREEN_WIDTH}
-                  snapToAlignment="center"
-                  decelerationRate="fast"
-                  scrollEventThrottle={16}
-                  contentContainerStyle={{ alignItems: 'center' }}
-                  keyExtractor={(item) => item._id}
-                  renderItem={({ item: business }) => (
-                    <View style={styles.businessCardContainer}>
-                      <LinearGradient
-                        colors={['#FFFFFF', '#F8FAFC']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={styles.businessCardGradient}
-                      >
-                        <IndexBusinessCard
-                          business={business}
-                          onPress={() => handleRecommendedBusinessPress(business)}
-                        />
-                      </LinearGradient>
-                      <View style={styles.cardIndicators}>
-                        {recommendedBusinesses.map((_, index) => (
-                          <View
-                            key={index}
-                            style={[
-                              styles.indicator,
-                              currentIndex === index && styles.indicatorActive
-                            ]}
-                          />
-                        ))}
-                      </View>
+              {/* Rest of the content with white background */}
+              <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 16 }}>
+                {/* Recommended Businesses Section */}
+                <View style={[styles.sectionWrapper, { backgroundColor: '#FFFFFF' }]}>
+                  <View style={styles.sectionHeaderMain}>
+                    <View style={styles.sectionTitleWrapper}>
+                      <Text style={styles.sectionTitle}>Önerilen İşletmeler</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        Aracınız için <Text style={styles.sectionHighlight}>profesyonel servis</Text> ve{' '}
+                        <Text style={styles.sectionHighlight}>kaliteli hizmet</Text> sunan, müşteri memnuniyeti yüksek işletmeler
+                      </Text>
                     </View>
-                  )}
-                  onMomentumScrollEnd={handleScrollEnd}
-                  onScrollEndDrag={(event) => {
-                    const offset = event.nativeEvent.contentOffset.x;
-                    const currentOffset = currentIndex * SCREEN_WIDTH;
-                    
-                    const isMovingLeft = offset > currentOffset;
-                    const isMovingRight = offset < currentOffset;
-                    
-                    let targetIndex = currentIndex;
-                    if (isMovingLeft && currentIndex < recommendedBusinesses.length - 1) {
-                      targetIndex = currentIndex + 1;
-                    } else if (isMovingRight && currentIndex > 0) {
-                      targetIndex = currentIndex - 1;
-                    }
-
-                    const newOffset = targetIndex * SCREEN_WIDTH;
-                    recommendedListRef.current?.scrollToOffset({
-                      offset: newOffset,
-                      animated: true
-                    });
-                    setCurrentIndex(targetIndex);
-                  }}
-                  getItemLayout={(data, index) => ({
-                    length: SCREEN_WIDTH,
-                    offset: SCREEN_WIDTH * index,
-                    index,
-                  })}
-                />
-              </View>
-
-              {/* Active Campaigns Section */}
-              <View style={styles.sectionWrapper}>
-                <View style={styles.sectionHeaderMain}>
-                  <View style={styles.sectionTitleWrapper}>
-                    <Text style={styles.sectionTitle}>Aktif Kampanyalar</Text>
+                    <TouchableOpacity 
+                      style={[styles.viewAllButton]}
+                      onPress={() => router.push('/isletmeler')}
+                    >
+                      <Text style={styles.viewAllText}>Tümünü Gör</Text>
+                      <FontAwesome name="angle-right" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity 
-                    style={[styles.viewAllButton, { backgroundColor: '#0066CC' }]}
-                    onPress={() => setShowCampaignsModal(true)}
-                  >
-                    <Text style={styles.viewAllText}>Tümünü Gör</Text>
-                    <FontAwesome name="angle-right" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
+                  <FlatList
+                    ref={recommendedListRef}
+                    data={recommendedBusinesses}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    pagingEnabled
+                    bounces={false}
+                    snapToInterval={SCREEN_WIDTH}
+                    snapToAlignment="center"
+                    decelerationRate="fast"
+                    scrollEventThrottle={16}
+                    contentContainerStyle={{ alignItems: 'center' }}
+                    keyExtractor={(item) => item._id}
+                    renderItem={({ item: business }) => (
+                      <View style={styles.businessCardContainer}>
+                        <LinearGradient
+                          colors={['#FFFFFF', '#F8FAFC']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 0, y: 1 }}
+                          style={styles.businessCardGradient}
+                        >
+                          <IndexBusinessCard
+                            business={business}
+                            onPress={() => handleRecommendedBusinessPress(business)}
+                          />
+                        </LinearGradient>
+                        <View style={styles.cardIndicators}>
+                          {recommendedBusinesses.map((_, index) => (
+                            <View
+                              key={index}
+                              style={[
+                                styles.indicator,
+                                currentIndex === index && styles.indicatorActive
+                              ]}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                    onMomentumScrollEnd={handleScrollEnd}
+                    onScrollEndDrag={(event) => {
+                      const offset = event.nativeEvent.contentOffset.x;
+                      const currentOffset = currentIndex * SCREEN_WIDTH;
+                      
+                      const isMovingLeft = offset > currentOffset;
+                      const isMovingRight = offset < currentOffset;
+                      
+                      let targetIndex = currentIndex;
+                      if (isMovingLeft && currentIndex < recommendedBusinesses.length - 1) {
+                        targetIndex = currentIndex + 1;
+                      } else if (isMovingRight && currentIndex > 0) {
+                        targetIndex = currentIndex - 1;
+                      }
+
+                      const newOffset = targetIndex * SCREEN_WIDTH;
+                      recommendedListRef.current?.scrollToOffset({
+                        offset: newOffset,
+                        animated: true
+                      });
+                      setCurrentIndex(targetIndex);
+                    }}
+                    getItemLayout={(data, index) => ({
+                      length: SCREEN_WIDTH,
+                      offset: SCREEN_WIDTH * index,
+                      index,
+                    })}
+                  />
                 </View>
 
-                <ScrollView 
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.campaignsScrollContainer}
-                >
-                  {campaigns.map((campaign, index) => (
+                {/* Active Campaigns Section */}
+                <View style={styles.sectionWrapper}>
+                  <View style={styles.sectionHeaderMain}>
+                    <View style={styles.sectionTitleWrapper}>
+                      <Text style={styles.sectionTitle}>Aktif Kampanyalar</Text>
+                    </View>
                     <TouchableOpacity 
-                      key={campaign._id} 
-                      style={styles.campaignCard}
-                      onPress={() => setSelectedCampaign(campaign)}
+                      style={[styles.viewAllButton, { backgroundColor: '#0066CC' }]}
+                      onPress={() => setShowCampaignsModal(true)}
                     >
-                      <ImageBackground
-                        source={{ uri: campaign.images[0] }}
-                        style={styles.campaignBackground}
-                        imageStyle={styles.campaignBackgroundImage}
+                      <Text style={styles.viewAllText}>Tümünü Gör</Text>
+                      <FontAwesome name="angle-right" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView 
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.campaignsScrollContainer}
+                  >
+                    {campaigns.map((campaign, index) => (
+                      <TouchableOpacity 
+                        key={campaign._id} 
+                        style={styles.campaignCard}
+                        onPress={() => setSelectedCampaign(campaign)}
                       >
-                        <LinearGradient
-                          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']}
-                          style={styles.campaignGradient}
+                        <ImageBackground
+                          source={{ uri: campaign.images[0] }}
+                          style={styles.campaignBackground}
+                          imageStyle={styles.campaignBackgroundImage}
                         >
-                          <View style={styles.campaignCardHeader}>
-                            <Text style={styles.campaignTitle} numberOfLines={1}>
-                              {campaign.vehicleBrand} {campaign.vehicleModel}
-                            </Text>
-                            <View style={styles.discountBadge}>
-                              <Text style={styles.discountText}>%{campaign.discountPercentage}</Text>
-                            </View>
-                          </View>
-                          <Text style={styles.campaignDescription} numberOfLines={2}>
-                            {campaign.description}
-                          </Text>
-                          <View style={styles.campaignFooter}>
-                            <View style={styles.priceContainer}>
-                              <Text style={styles.campaignPrice}>
-                                {campaign.discountedPrice.toLocaleString('tr-TR')} ₺
+                          <LinearGradient
+                            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']}
+                            style={styles.campaignGradient}
+                          >
+                            <View style={styles.campaignCardHeader}>
+                              <Text style={styles.campaignTitle} numberOfLines={1}>
+                                {campaign.vehicleBrand} {campaign.vehicleModel}
                               </Text>
-                              <Text style={styles.campaignOriginalPrice}>
-                                {campaign.originalPrice.toLocaleString('tr-TR')} ₺
-                              </Text>
-                            </View>
-                            <View style={styles.campaignMetaInfo}>
-                              <View style={styles.daysLeftBadge}>
-                                <FontAwesome name="calendar" size={12} color="#FFFFFF" />
-                                <Text style={styles.daysLeftText}>
-                                  Son {campaign.remainingDays} gün
-                                </Text>
+                              <View style={styles.discountBadge}>
+                                <Text style={styles.discountText}>%{campaign.discountPercentage}</Text>
                               </View>
                             </View>
-                          </View>
-                        </LinearGradient>
-                      </ImageBackground>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                            <Text style={styles.campaignDescription} numberOfLines={2}>
+                              {campaign.description}
+                            </Text>
+                            <View style={styles.campaignFooter}>
+                              <View style={styles.priceContainer}>
+                                <Text style={styles.campaignPrice}>
+                                  {campaign.discountedPrice.toLocaleString('tr-TR')} ₺
+                                </Text>
+                                <Text style={styles.campaignOriginalPrice}>
+                                  {campaign.originalPrice.toLocaleString('tr-TR')} ₺
+                                </Text>
+                              </View>
+                              <View style={styles.campaignMetaInfo}>
+                                <View style={styles.daysLeftBadge}>
+                                  <FontAwesome name="calendar" size={12} color="#FFFFFF" />
+                                  <Text style={styles.daysLeftText}>
+                                    Son {campaign.remainingDays} gün
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </LinearGradient>
+                        </ImageBackground>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Footer Section */}
+                <View style={styles.footerSection}>
+                  <Text style={styles.footerText}>© 2024 Tüm hakları Ototus'a aittir</Text>
+                </View>
               </View>
             </View>
-          </View>
-        </ScrollView>
-      </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
 
       {/* Campaign Detail Modal */}
       {selectedCampaign && (
@@ -757,6 +620,6 @@ export default function LandingScreen() {
 
       {/* Add FloatingAssistant */}
       <FloatingAssistant />
-    </SafeAreaView>
+    </>
   );
 }

@@ -9,9 +9,9 @@ import { useRouter } from 'expo-router';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = SCREEN_WIDTH - 32;
-const IMAGE_ASPECT_RATIO = 16 / 9;
+const IMAGE_ASPECT_RATIO = 21 / 9;
 const IMAGE_HEIGHT = Math.floor(CARD_WIDTH / IMAGE_ASPECT_RATIO);
-const CARD_HEIGHT = IMAGE_HEIGHT + 180; // Increased from 160 to 180 to accommodate all content
+const CARD_HEIGHT = IMAGE_HEIGHT + 80;
 
 interface IndexBusinessCardProps {
   business: RecommendedBusiness;
@@ -143,7 +143,7 @@ export default function IndexBusinessCard({ business, onPress }: IndexBusinessCa
             {business.name}
           </Text>
           <View style={styles.ratingContainer}>
-            <FontAwesome name="star" size={16} color="#FFD700" />
+            <FontAwesome name="star" size={14} color="#FFD700" />
             <Text style={styles.rating}>
               {business.averageRating.toFixed(1)}
             </Text>
@@ -153,45 +153,39 @@ export default function IndexBusinessCard({ business, onPress }: IndexBusinessCa
           </View>
         </View>
 
-        <Text style={styles.description} numberOfLines={2}>
-          {business.description || 'İşletme açıklaması bulunmamaktadır.'}
-        </Text>
-
         <View style={styles.footer}>
-          <View style={styles.footerLeft}>
-            <View style={styles.locationContainer}>
-              <View style={styles.iconContainer}>
-                <LinearGradient
-                  colors={['#FF9500', '#FF5E3A']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.iconBackground}
-                >
-                  <FontAwesome name="map-marker" size={12} color="#FFFFFF" />
-                </LinearGradient>
-              </View>
-              <Text style={styles.address} numberOfLines={1}>
-                {business.ilce}, {business.city}
-              </Text>
-            </View>
-            {business.brands && business.brands.length > 0 && (
-              <View style={styles.brandsContainer}>
-                <View style={styles.iconContainer}>
-                  <LinearGradient
-                    colors={['#34C759', '#30B956']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.iconBackground}
-                  >
-                    <FontAwesome name="car" size={10} color="#FFFFFF" />
-                  </LinearGradient>
+          <View style={styles.infoContainer}>
+            <View style={styles.infoRow}>
+              <View style={styles.tagRow}>
+                <View style={[
+                  styles.tagContainer, 
+                  { 
+                    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                    borderColor: 'rgba(249, 115, 22, 0.2)'
+                  }
+                ]}>
+                  <FontAwesome name="map-marker" size={12} color="#C2410C" />
+                  <Text style={[styles.tagText, { color: '#C2410C' }]} numberOfLines={1}>
+                    {business.ilce}
+                  </Text>
                 </View>
-                <Text style={styles.brands} numberOfLines={1}>
-                  {business.brands.slice(0, 2).join(', ')}
-                  {business.brands.length > 2 ? ' +' + (business.brands.length - 2) : 'Tüm Markalar'}
-                </Text>
+                
+                {business.brands && business.brands.length > 0 && (
+                  <View style={[
+                    styles.tagContainer, 
+                    { 
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      borderColor: 'rgba(34, 197, 94, 0.2)'
+                    }
+                  ]}>
+                    <FontAwesome name="car" size={12} color="#15803D" />
+                    <Text style={[styles.tagText, { color: '#15803D' }]} numberOfLines={1}>
+                      {business.brands.length} Marka
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
+            </View>
           </View>
 
           <TouchableOpacity 
@@ -201,13 +195,13 @@ export default function IndexBusinessCard({ business, onPress }: IndexBusinessCa
             disabled={isTransitioning}
           >
             <LinearGradient
-              colors={['#0066CC', '#0044AA']}
+              colors={['#6366F1', '#4F46E5']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.contactButtonGradient}
             >
-              <FontAwesome name="phone" size={14} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Hemen Ulaş</Text>
+              <FontAwesome name="phone" size={12} color="#FFFFFF" />
+              <Text style={styles.buttonText}>İletişim</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -229,17 +223,19 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
       },
       android: {
-        elevation: 4,
+        elevation: 8,
       },
     }),
   },
@@ -257,16 +253,29 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: Math.floor(IMAGE_HEIGHT * 0.4),
+    height: Math.floor(IMAGE_HEIGHT * 0.5),
   },
   categoryBadge: {
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: 'rgba(0, 102, 204, 0.9)',
+    backgroundColor: 'rgba(99, 102, 241, 0.95)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   categoryText: {
     color: '#FFFFFF',
@@ -276,127 +285,104 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
-    paddingBottom: 12,
+    padding: 12,
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#1E293B',
     marginRight: 12,
+    letterSpacing: -0.3,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(250, 204, 21, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(250, 204, 21, 0.2)',
   },
   rating: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#854D0E',
     marginLeft: 4,
   },
   reviewCount: {
-    fontSize: 12,
-    color: '#666666',
+    fontSize: 11,
+    color: '#92400E',
     marginLeft: 2,
-  },
-  description: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
-    marginVertical: 6,
-    minHeight: 40,
+    opacity: 0.8,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 'auto',
-    paddingTop: 6,
+    alignItems: 'center',
+    marginTop: 2,
   },
-  footerLeft: {
+  infoContainer: {
     flex: 1,
-    gap: 8,
+    marginRight: 8,
   },
-  locationContainer: {
+  infoRow: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'nowrap',
+  },
+  tagContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    minHeight: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+    borderWidth: 1,
   },
-  iconContainer: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    overflow: 'hidden',
-  },
-  iconBackground: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  address: {
-    fontSize: 13,
-    color: '#1A1A1A',
-    fontWeight: '500',
-    flex: 1,
-    lineHeight: 18,
-  },
-  brandsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 24,
-  },
-  brands: {
-    fontSize: 13,
-    color: '#1A1A1A',
-    fontWeight: '500',
-    flex: 1,
-    lineHeight: 18,
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
+  tagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   contactButton: {
     overflow: 'hidden',
     borderRadius: 12,
-    shadowColor: '#0066CC',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    alignSelf: 'flex-start',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   contactButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     letterSpacing: -0.3,
   },

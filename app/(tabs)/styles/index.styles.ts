@@ -36,9 +36,8 @@ export const styles = StyleSheet.create({
   // Header Styles
   header: {
     paddingTop: Platform.OS === 'ios' ? 0 : StatusBar.currentHeight,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
   },
   headerTop: {
     flexDirection: 'row',
@@ -53,7 +52,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     marginRight: 6,
   },
   betaBadge: {
@@ -115,12 +114,12 @@ export const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   welcomeText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(0, 0, 0, 0.7)',
     lineHeight: 18,
   },
   // Quick Access Section
@@ -172,16 +171,11 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 4,
-    letterSpacing: -0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.08)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   sectionSubtitle: {
     fontSize: 12,
     color: '#475569',
     lineHeight: 16,
-    letterSpacing: -0.2,
     opacity: 0.9,
   },
   sectionHighlight: {
@@ -256,68 +250,80 @@ export const styles = StyleSheet.create({
     marginRight: 4,
   },
   servicesSection: {
-    padding: 12,
+    paddingVertical: 8,
   },
   servicesSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
-  servicesGrid: {
+  quickActionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
-  serviceButton: {
-    width: '20%',
-    padding: 4,
-  },
-  serviceButtonInner: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 6,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingHorizontal: 16,
+    gap: 16,
+    paddingBottom: 16,
   },
-  serviceIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  quickActionButton: {
+    width: SCREEN_WIDTH * 0.19,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  quickActionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2,
+    marginBottom: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  serviceTitle: {
-    fontSize: 10,
+  quickActionText: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#1A1A1A',
     textAlign: 'center',
-    marginBottom: 2,
-  },
-  serviceDescription: {
-    fontSize: 10,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  fullWidthBanner: {
+    opacity: 0.8,
     width: '100%',
-    height: 160,
-    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  promotionBanner: {
+    width: SCREEN_WIDTH - 24,
+    height: SCREEN_WIDTH * 0.6,
+    marginHorizontal: 12,
+    marginVertical: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#F8F9FA',
+    alignSelf: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   bannerImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 20,
   },
   bannerGradient: {
     position: 'absolute',
@@ -325,6 +331,7 @@ export const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'flex-end',
     padding: 20,
+    borderRadius: 20,
   },
   bannerTitle: {
     fontSize: 20,
@@ -728,5 +735,16 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A1A',
     marginLeft: 6,
+  },
+  // Footer Styles
+  footerSection: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
   },
 }); 
