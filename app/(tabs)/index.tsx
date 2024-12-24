@@ -1,123 +1,19 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, TextInput, RefreshControl, ImageBackground, StatusBar, Modal, Platform, Pressable, BackHandler, FlatList, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, TextInput, RefreshControl, ImageBackground, StatusBar, Modal, Platform, Pressable, BackHandler, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { apiService } from '../../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
-import CampaignButton from '../../components/CampaignButton';
+import CampaignButton, { Campaign } from '../../components/CampaignButton';
 import BusinessCard from '../../components/BusinessCard';
 import BusinessCardDetails from '../../components/BusinessCardDetails';
-import { Campaign, RecommendedBusiness } from '../../types/business';
+import { RecommendedBusiness } from '../../types/business';
 import FloatingAssistant from '../../components/FloatingAssistant';
-import { styles as baseStyles } from './styles/index.styles';
+import { styles } from './styles/index.styles';
 import IndexBusinessCard from '../../components/IndexBusinessCard';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-
-// Extend the base styles with new styles
-const styles = StyleSheet.create({
-  ...baseStyles,
-  // Section Layout
-  sectionWrapper: {
-    marginTop: 16,
-    backgroundColor: '#F8FAFC',
-  },
-  sectionHeaderMain: {
-    flexDirection: 'row' as const,
-    alignItems: 'flex-start' as const,
-    justifyContent: 'space-between' as const,
-    marginBottom: 20,
-    paddingTop: 16,
-    paddingHorizontal: 16,
-  },
-  
-  // Section Title Area
-  sectionTitleWrapper: {
-    flex: 1,
-    marginRight: 16,
-  },
-  sectionTitle: {
-    fontSize: 26,
-    fontWeight: '700' as const,
-    color: '#1A1A1A',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.08)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  sectionSubtitle: {
-    fontSize: 15,
-    color: '#475569',
-    lineHeight: 22,
-    letterSpacing: -0.3,
-    opacity: 0.9,
-  },
-  sectionHighlight: {
-    color: '#0066CC',
-    fontWeight: '600' as const,
-  },
-  
-  // Business Card Container
-  businessCardContainer: {
-    width: SCREEN_WIDTH,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  businessCardGradient: {
-    width: SCREEN_WIDTH - 32,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  
-  // Card Indicators
-  cardIndicators: {
-    flexDirection: 'row' as const,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    marginTop: 16,
-    marginBottom: 8,
-    height: 8,
-  },
-  indicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0, 102, 204, 0.15)',
-    marginHorizontal: 4,
-  },
-  indicatorActive: {
-    backgroundColor: '#0066CC',
-    width: 24,
-  },
-  
-  // View All Button
-  viewAllButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#0066CC',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: '#0066CC',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  viewAllText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600' as const,
-    marginRight: 8,
-    letterSpacing: -0.2,
-  },
-});
 
 const mapToRecommendedBusiness = (business: any): RecommendedBusiness => ({
   _id: business._id?.toString() ?? '',
@@ -273,88 +169,302 @@ export default function LandingScreen() {
   }, [currentIndex]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#003366' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#003366" />
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <View style={{ flex: 1 }}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0066CC']} />
-            }
-          >
-            {/* Enhanced Header */}
-            <LinearGradient
-              colors={['#003366', '#0066CC', '#0099FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.header, { marginBottom: 16 }]}
-            >
-              <View style={styles.headerTop}>
-                <View style={styles.headerTitleContainer}>
-                  <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Ototus</Text>
-                  <View style={styles.betaBadge}>
-                    <LinearGradient
-                      colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.betaBadgeGradient}
-                    >
-                      <Text style={[styles.betaText, { color: '#FFFFFF' }]}>BETA</Text>
-                    </LinearGradient>
-                  </View>
-                </View>
-                <View style={styles.headerActions}>
-                  <TouchableOpacity 
-                    style={[styles.notificationButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
-                    onPress={() => router.push('/notifications')}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0066CC' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#0066CC" />
+      <View style={{ flex: 1 }}>
+        <View style={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '25%',
+          backgroundColor: '#0066CC',
+          zIndex: 0
+        }} />
+        <ScrollView
+        
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FFFFFF']} progressBackgroundColor="#0066CC" />
+          }
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerTop}>
+              <View style={styles.headerTitleContainer}>
+                <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>Ototus</Text>
+                <View style={styles.betaBadge}>
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.betaBadgeGradient}
                   >
-                    <FontAwesome name="bell" size={22} color="#FFFFFF" />
-                    {notifications > 0 && (
-                      <View style={[styles.notificationBadge, { backgroundColor: '#FF3B30', borderColor: '#003366' }]}>
-                        <Text style={styles.notificationCount}>{notifications}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.profileButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
-                    onPress={() => router.push('/profilim')}
-                  >
-                    <FontAwesome name="user-circle" size={24} color="#FFFFFF" />
-                  </TouchableOpacity>
+                    <Text style={[styles.betaText, { color: '#FFFFFF' }]}>BETA</Text>
+                  </LinearGradient>
                 </View>
               </View>
-
-              <View style={styles.welcomeContainer}>
-                <Text style={[styles.welcomeTitle, { color: '#FFFFFF' }]}>Hoş Geldiniz! 👋</Text>
-                <Text style={[styles.welcomeText, { color: 'rgba(255, 255, 255, 0.9)' }]}>
-                  Aracınız için en iyi hizmet ve fırsatlar burada
-                </Text>
-              </View>
-
-              <View style={styles.quickAccessGrid}>
+              <View style={styles.headerActions}>
                 <TouchableOpacity 
-                  style={[styles.quickAccessButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+                  style={[styles.notificationButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+                  onPress={() => router.push('/notifications')}
+                >
+                  <FontAwesome name="bell" size={22} color="#FFFFFF" />
+                  {notifications > 0 && (
+                    <View style={[styles.notificationBadge, { backgroundColor: '#FF3B30', borderColor: '#0066CC' }]}>
+                      <Text style={styles.notificationCount}>{notifications}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.profileButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+                  onPress={() => router.push('/profilim')}
+                >
+                  <FontAwesome name="user-circle" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.welcomeContainer}>
+              <Text style={[styles.welcomeTitle, { color: '#FFFFFF' }]}>Hoş Geldiniz! 👋</Text>
+              <Text style={[styles.welcomeText, { color: 'rgba(255, 255, 255, 0.9)' }]}>
+                Aracınız için en iyi hizmet ve fırsatlar burada
+              </Text>
+            </View>
+          </View>
+
+          {/* Content Container */}
+          <View style={{ backgroundColor: '#FFFFFF', flex: 1 }}>
+            {/* Full Width Banner */}
+            <View style={styles.fullWidthBanner}>
+              <ImageBackground
+                source={{ uri: recommendedBusinesses[0]?.images[0] }}
+                style={styles.bannerImage}
+                resizeMode="cover"
+              >
+                <LinearGradient
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
+                  style={styles.bannerGradient}
+                >
+                  <Text style={styles.bannerTitle}>Profesyonel Servis Ağı</Text>
+                  <Text style={styles.bannerSubtitle}>
+                    Aracınız için en iyi hizmet noktaları
+                  </Text>
+                </LinearGradient>
+              </ImageBackground>
+            </View>
+
+            {/* Services Section */}
+            <View style={styles.servicesSection}>
+              <Text style={styles.servicesSectionTitle}>Hizmetlerimiz</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{paddingRight: 16, gap: 6 }}
+              >
+                {/* Acil Yardım */}
+                <TouchableOpacity 
+                  style={{
+                    width: SCREEN_WIDTH * 0.25,
+                    height: 90,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}
                   onPress={() => router.push('/acil')}
                 >
-                  <View style={[styles.quickAccessIcon, { backgroundColor: '#FF3B30' }]}>
-                    <FontAwesome name="ambulance" size={24} color="#FFFFFF" />
-                  </View>
-                  <Text style={[styles.quickAccessText, { color: '#FFFFFF' }]}>Acil Yardım</Text>
+                  <ImageBackground
+                    source={{ uri: 'https://img.freepik.com/free-vector/roadside-assistance-emergency-car-towing-service-flat-design_1150-51079.jpg' }}
+                    style={{ width: '100%', height: '100%' }}
+                    imageStyle={{ borderRadius: 12 }}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(255, 59, 48, 0.95)']}
+                      style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 8,
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <View style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          padding: 6,
+                          borderRadius: 8,
+                        }}>
+                          <FontAwesome name="ambulance" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                          Acil Yardım
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
                 </TouchableOpacity>
 
+                {/* Cep Ustam */}
                 <TouchableOpacity 
-                  style={[styles.quickAccessButton, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+                  style={{
+                    width: SCREEN_WIDTH * 0.25,
+                    height: 90,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}
                   onPress={() => router.push('/cep-ustam')}
                 >
-                  <View style={[styles.quickAccessIcon, { backgroundColor: '#0099FF' }]}>
-                    <FontAwesome name="magic" size={24} color="#FFFFFF" />
-                  </View>
-                  <Text style={[styles.quickAccessText, { color: '#FFFFFF' }]}>Cep Ustam</Text>
+                  <ImageBackground
+                    source={{ uri: 'https://img.freepik.com/free-vector/ai-powered-chatbot-abstract-concept-illustration_335657-3738.jpg' }}
+                    style={{ width: '100%', height: '100%' }}
+                    imageStyle={{ borderRadius: 12 }}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0, 122, 255, 0.95)']}
+                      style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 8,
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <View style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          padding: 6,
+                          borderRadius: 8,
+                        }}>
+                          <FontAwesome name="wrench" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                          Cep Ustam
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
                 </TouchableOpacity>
-              </View>
-            </LinearGradient>
+
+                {/* İşletmeler */}
+                <TouchableOpacity 
+                  style={{
+                    width: SCREEN_WIDTH * 0.25,
+                    height: 90,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}
+                  onPress={() => router.push('/isletmeler')}
+                >
+                  <ImageBackground
+                    source={{ uri: 'https://img.freepik.com/free-vector/car-repair-maintenance-service-flat-illustration_88138-1280.jpg' }}
+                    style={{ width: '100%', height: '100%' }}
+                    imageStyle={{ borderRadius: 12 }}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(52, 199, 89, 0.95)']}
+                      style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 8,
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <View style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          padding: 6,
+                          borderRadius: 8,
+                        }}>
+                          <FontAwesome name="building" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                          İşletmeler
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
+                </TouchableOpacity>
+
+                {/* Kampanyalar */}
+                <TouchableOpacity 
+                  style={{
+                    width: SCREEN_WIDTH * 0.25,
+                    height: 90,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}
+                  onPress={() => setShowCampaignsModal(true)}
+                >
+                  <ImageBackground
+                    source={{ uri: 'https://img.freepik.com/free-vector/modern-sale-banner-with-text-space-geometric-shapes_1017-13726.jpg' }}
+                    style={{ width: '100%', height: '100%' }}
+                    imageStyle={{ borderRadius: 12 }}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(255, 149, 0, 0.95)']}
+                      style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 8,
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <View style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          padding: 6,
+                          borderRadius: 8,
+                        }}>
+                          <FontAwesome name="tag" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                          Kampanyalar
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
+                </TouchableOpacity>
+
+                {/* Profilim */}
+                <TouchableOpacity 
+                  style={{
+                    width: SCREEN_WIDTH * 0.25,
+                    height: 90,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    marginRight: 16
+                  }}
+                  onPress={() => router.push('/profilim')}
+                >
+                  <ImageBackground
+                    source={{ uri: 'https://img.freepik.com/free-vector/abstract-geometric-pattern-background_1319-242.jpg' }}
+                    style={{ width: '100%', height: '100%' }}
+                    imageStyle={{ borderRadius: 12 }}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(88, 86, 214, 0.95)']}
+                      style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 8,
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <View style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          padding: 6,
+                          borderRadius: 8,
+                        }}>
+                          <FontAwesome name="user" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                          Profilim
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
 
             {/* Rest of the content with white background */}
             <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 16 }}>
@@ -516,8 +626,8 @@ export default function LandingScreen() {
                 </ScrollView>
               </View>
             </View>
-          </ScrollView>
-        </View>
+          </View>
+        </ScrollView>
       </View>
 
       {/* Campaign Detail Modal */}

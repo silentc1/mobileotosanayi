@@ -11,7 +11,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = SCREEN_WIDTH - 32;
 const IMAGE_ASPECT_RATIO = 16 / 9;
 const IMAGE_HEIGHT = Math.floor(CARD_WIDTH / IMAGE_ASPECT_RATIO);
-const CARD_HEIGHT = IMAGE_HEIGHT + 160; // Fixed height: image + content
+const CARD_HEIGHT = IMAGE_HEIGHT + 180; // Increased from 160 to 180 to accommodate all content
 
 interface IndexBusinessCardProps {
   business: RecommendedBusiness;
@@ -154,47 +154,72 @@ export default function IndexBusinessCard({ business, onPress }: IndexBusinessCa
         </View>
 
         <Text style={styles.description} numberOfLines={2}>
-          {business.description || 'şletme açıklaması bulunmamaktadır.'}
+          {business.description || 'İşletme açıklaması bulunmamaktadır.'}
         </Text>
 
         <View style={styles.footer}>
-          <View style={styles.locationContainer}>
-            <FontAwesome name="map-marker" size={14} color="#666666" />
-            <Text style={styles.address} numberOfLines={1}>
-              {business.ilce}, {business.city}
-            </Text>
-          </View>
-          {business.brands && business.brands.length > 0 && (
-            <View style={styles.brandsContainer}>
-              <FontAwesome name="wrench" size={12} color="#666666" />
-              <Text style={styles.brands} numberOfLines={1}>
-                {business.brands.slice(0, 2).join(', ')}
-                {business.brands.length > 2 ? ' +' + (business.brands.length - 2) : ''}
+          <View style={styles.footerLeft}>
+            <View style={styles.locationContainer}>
+              <View style={styles.iconContainer}>
+                <LinearGradient
+                  colors={['#FF9500', '#FF5E3A']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconBackground}
+                >
+                  <FontAwesome name="map-marker" size={12} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.address} numberOfLines={1}>
+                {business.ilce}, {business.city}
               </Text>
             </View>
-          )}
+            {business.brands && business.brands.length > 0 && (
+              <View style={styles.brandsContainer}>
+                <View style={styles.iconContainer}>
+                  <LinearGradient
+                    colors={['#34C759', '#30B956']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.iconBackground}
+                  >
+                    <FontAwesome name="car" size={10} color="#FFFFFF" />
+                  </LinearGradient>
+                </View>
+                <Text style={styles.brands} numberOfLines={1}>
+                  {business.brands.slice(0, 2).join(', ')}
+                  {business.brands.length > 2 ? ' +' + (business.brands.length - 2) : 'Tüm Markalar'}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity 
+            style={styles.contactButton}
+            onPress={handlePress}
+            activeOpacity={0.8}
+            disabled={isTransitioning}
+          >
+            <LinearGradient
+              colors={['#0066CC', '#0044AA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.contactButtonGradient}
+            >
+              <FontAwesome name="phone" size={14} color="#FFFFFF" />
+              <Text style={styles.buttonText}>Hemen Ulaş</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.contactButton}
-          onPress={handlePress}
-          activeOpacity={0.8}
-          disabled={isTransitioning}
-        >
-          <FontAwesome name="phone" size={14} color="#FFFFFF" />
-          <Text style={styles.buttonText}>Hemen Ulaş</Text>
-        </TouchableOpacity>
+        <BusinessCardDetails
+          business={mapBusinessToDetailsType(business)}
+          visible={isDetailsVisible}
+          onClose={handleCloseDetails}
+          onFavoritePress={handleFavoritePress}
+          isFavorite={localIsFavorite}
+        />
       </View>
-
-      <BusinessCardDetails
-        business={mapBusinessToDetailsType(business)}
-        visible={isDetailsVisible}
-        onClose={handleCloseDetails}
-        onFavoritePress={handleFavoritePress}
-        isFavorite={localIsFavorite}
-      />
     </TouchableOpacity>
   );
 }
@@ -252,6 +277,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    paddingBottom: 12,
     justifyContent: 'space-between',
   },
   header: {
@@ -290,31 +316,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
     lineHeight: 20,
-    marginVertical: 8,
-    minHeight: 40, // Ensures consistent height for 2 lines
+    marginVertical: 6,
+    minHeight: 40,
   },
   footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 'auto',
+    paddingTop: 6,
+  },
+  footerLeft: {
+    flex: 1,
     gap: 8,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minHeight: 24,
+  },
+  iconContainer: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    overflow: 'hidden',
+  },
+  iconBackground: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   address: {
     fontSize: 13,
-    color: '#666666',
+    color: '#1A1A1A',
+    fontWeight: '500',
     flex: 1,
+    lineHeight: 18,
   },
   brandsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minHeight: 24,
   },
   brands: {
-    fontSize: 12,
-    color: '#666666',
+    fontSize: 13,
+    color: '#1A1A1A',
+    fontWeight: '500',
     flex: 1,
+    lineHeight: 18,
   },
   buttonContainer: {
     position: 'absolute',
@@ -322,26 +375,30 @@ const styles = StyleSheet.create({
     right: 16,
   },
   contactButton: {
-    backgroundColor: '#0066CC',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    shadowColor: '#000',
+    overflow: 'hidden',
+    borderRadius: 12,
+    shadowColor: '#0066CC',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    alignSelf: 'flex-start',
+  },
+  contactButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+    letterSpacing: -0.3,
   },
   transitioningContainer: {
     opacity: 0.7,
